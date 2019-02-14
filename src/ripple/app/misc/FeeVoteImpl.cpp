@@ -28,14 +28,13 @@ namespace ripple {
 
 namespace detail {
 
-template <typename Integer>
 class VotableInteger
 {
 private:
-    using map_type = std::map <Integer, int>;
+    using Integer = XRPAmount;
     Integer mCurrent;   // The current setting
     Integer mTarget;    // The setting we want
-    map_type mVoteMap;
+    std::map <Integer, int> mVoteMap;
 
 public:
     VotableInteger (Integer current, Integer target)
@@ -62,9 +61,9 @@ public:
     getVotes() const;
 };
 
-template <class Integer>
-Integer
-VotableInteger <Integer>::getVotes() const
+auto
+VotableInteger::getVotes() const
+    -> Integer
 {
     Integer ourVote = mCurrent;
     int weight = 0;
@@ -153,13 +152,14 @@ FeeVoteImpl::doVoting(
     // LCL must be flag ledger
     assert ((lastClosedLedger->info().seq % 256) == 0);
 
-    detail::VotableInteger<std::uint64_t> baseFeeVote (
+    detail::VotableInteger baseFeeVote (
         lastClosedLedger->fees().base, target_.reference_fee);
 
-    detail::VotableInteger<std::uint32_t> baseReserveVote (
-        lastClosedLedger->fees().accountReserve(0).drops(), target_.account_reserve);
+    detail::VotableInteger baseReserveVote(
+        lastClosedLedger->fees().accountReserve(0),
+        target_.account_reserve);
 
-    detail::VotableInteger<std::uint32_t> incReserveVote (
+    detail::VotableInteger incReserveVote (
         lastClosedLedger->fees().increment, target_.owner_reserve);
 
     for (auto const& val : set)
@@ -196,15 +196,15 @@ FeeVoteImpl::doVoting(
     }
 
     // choose our positions
-    std::uint64_t const baseFee = baseFeeVote.getVotes ();
-    std::uint32_t const baseReserve = baseReserveVote.getVotes ();
-    std::uint32_t const incReserve = incReserveVote.getVotes ();
-    std::uint32_t const feeUnits = target_.reference_fee_units;
+    XRPAmount const baseFee = baseFeeVote.getVotes ();
+    XRPAmount const baseReserve = baseReserveVote.getVotes ();
+    XRPAmount const incReserve = incReserveVote.getVotes ();
+    constexpr FeeUnit32 feeUnits = Setup::reference_fee_units;
     auto const seq = lastClosedLedger->info().seq + 1;
 
     // add transactions to our position
     if ((baseFee != lastClosedLedger->fees().base) ||
-            (baseReserve != lastClosedLedger->fees().accountReserve(0)) ||
+        (baseReserve != lastClosedLedger->fees().accountReserve(0)) ||
             (incReserve != lastClosedLedger->fees().increment))
     {
         JLOG(journal_.warn()) <<

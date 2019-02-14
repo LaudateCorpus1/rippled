@@ -28,7 +28,7 @@
 #include <ripple/app/paths/impl/Steps.h>
 #include <ripple/basics/Log.h>
 #include <ripple/protocol/IOUAmount.h>
-#include <ripple/protocol/XRPAmount.h>
+#include <ripple/basics/XRPAmount.h>
 
 #include <boost/container/flat_set.hpp>
 

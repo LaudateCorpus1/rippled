@@ -280,9 +280,9 @@ STAmount::STAmount (XRPAmount const& amount)
     , mIsNegative (amount < beast::zero)
 {
     if (mIsNegative)
-        mValue = static_cast<std::uint64_t> (-amount.drops ());
+        mValue = unsafe_cast<std::uint64_t> (-amount.drops ());
     else
-        mValue = static_cast<std::uint64_t> (amount.drops ());
+        mValue = unsafe_cast<std::uint64_t> (amount.drops ());
 
     canonicalize ();
 }
@@ -298,12 +298,14 @@ STAmount::construct (SerialIter& sit, SField const& name)
 // Conversion
 //
 //------------------------------------------------------------------------------
-XRPAmount STAmount::xrp () const
+XRPAmount
+STAmount::xrp () const
 {
     if (!mIsNative)
-        Throw<std::logic_error> ("Cannot return non-native STAmount as XRPAmount");
+        Throw<std::logic_error> (
+            "Cannot return non-native STAmount as XRPAmount");
 
-    auto drops = static_cast<std::int64_t> (mValue);
+    auto drops = static_cast<XRPAmount::value_type> (mValue);
 
     if (mIsNegative)
         drops = -drops;
@@ -311,7 +313,8 @@ XRPAmount STAmount::xrp () const
     return { drops };
 }
 
-IOUAmount STAmount::iou () const
+IOUAmount
+STAmount::iou () const
 {
     if (mIsNative)
         Throw<std::logic_error> ("Cannot return native STAmount as IOUAmount");

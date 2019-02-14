@@ -22,6 +22,7 @@
 #include <test/basics/base_uint_test.cpp>
 #include <test/basics/Buffer_test.cpp>
 #include <test/basics/contract_test.cpp>
+#include <test/basics/feeunits_test.cpp>
 #include <test/basics/DetectCrash_test.cpp>
 #include <test/basics/FileUtilities_test.cpp>
 #include <test/basics/hardened_hash_test.cpp>

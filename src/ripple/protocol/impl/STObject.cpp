@@ -603,9 +603,22 @@ void STObject::setFieldU32 (SField const& field, std::uint32_t v)
     setFieldUsingSetValue <STUInt32> (field, v);
 }
 
+void STObject::setFieldU32 (SField const& field, XRPAmount v)
+{
+    assert(v > beast::zero &&
+        v <= std::numeric_limits<std::uint32_t>::max());
+    setFieldUsingSetValue <STUInt32> (field, v.drops());
+}
+
 void STObject::setFieldU64 (SField const& field, std::uint64_t v)
 {
     setFieldUsingSetValue <STUInt64> (field, v);
+}
+
+void STObject::setFieldU64 (SField const& field, XRPAmount v)
+{
+    assert(v > beast::zero);
+    setFieldUsingSetValue <STUInt64> (field, v.drops());
 }
 
 void STObject::setFieldH128 (SField const& field, uint128 const& v)

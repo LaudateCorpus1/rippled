@@ -23,6 +23,7 @@
 #include <ripple/basics/chrono.h>
 #include <ripple/basics/contract.h>
 #include <ripple/basics/CountedObject.h>
+#include <ripple/basics/feeunits.h>
 #include <ripple/basics/Slice.h>
 #include <ripple/protocol/STAmount.h>
 #include <ripple/protocol/STPathSet.h>
@@ -84,6 +85,13 @@ private:
             std::is_assignable<T, U>::value,
                 ValueProxy&>
         operator= (U&& u);
+
+        template <class Fee>
+        std::enable_if_t<
+            units::is_usable_unit_v<Fee> &&
+            std::is_assignable_v<T, typename Fee::value_type>,
+                ValueProxy&>
+        operator= (Fee const& u);
 
         operator value_type() const;
 
@@ -212,6 +220,13 @@ private:
             std::is_assignable<T, U>::value,
                 OptionalProxy&>
         operator= (U&& u);
+
+        template <class Fee>
+        std::enable_if_t<
+            units::is_usable_unit_v<Fee> &&
+            std::is_assignable_v<T, typename Fee::value_type>,
+                OptionalProxy&>
+        operator= (Fee const& u);
 
     private:
         friend class STObject;
@@ -472,7 +487,9 @@ public:
     void setFieldU8 (SField const& field, unsigned char);
     void setFieldU16 (SField const& field, std::uint16_t);
     void setFieldU32 (SField const& field, std::uint32_t);
+    void setFieldU32 (SField const& field, XRPAmount);
     void setFieldU64 (SField const& field, std::uint64_t);
+    void setFieldU64 (SField const& field, XRPAmount);
     void setFieldH128 (SField const& field, uint128 const&);
     void setFieldH256 (SField const& field, uint256 const& );
     void setFieldVL (SField const& field, Blob const&);
@@ -735,6 +752,18 @@ STObject::ValueProxy<T>::operator= (U&& u)
 }
 
 template <class T>
+template <class Fee>
+std::enable_if_t<
+    units::is_usable_unit_v<Fee> &&
+    std::is_assignable_v<T, typename Fee::value_type>,
+        STObject::ValueProxy<T>&>
+STObject::ValueProxy<T>::operator= (Fee const& u)
+{
+    this->assign(u.value());
+    return *this;
+}
+
+template <class T>
 STObject::ValueProxy<T>::operator value_type() const
 {
     return this->value();
@@ -818,6 +847,18 @@ std::enable_if_t<
 STObject::OptionalProxy<T>::operator=(U&& u)
 {
     this->assign(std::forward<U>(u));
+    return *this;
+}
+
+template <class T>
+template <class Fee>
+std::enable_if_t<
+    units::is_usable_unit_v<Fee> &&
+    std::is_assignable_v<T, typename Fee::value_type>,
+        STObject::OptionalProxy<T>&>
+STObject::OptionalProxy<T>::operator= (Fee const& u)
+{
+    this->assign(u.value());
     return *this;
 }
 

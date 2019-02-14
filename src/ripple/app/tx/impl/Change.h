@@ -46,7 +46,7 @@ public:
     void preCompute() override;
 
     static
-    std::uint64_t
+    FeeUnit64
     calculateBaseFee (
         ReadView const& view,
         STTx const& tx)

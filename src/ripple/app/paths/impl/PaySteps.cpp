@@ -23,7 +23,7 @@
 #include <ripple/ledger/ReadView.h>
 #include <ripple/protocol/Feature.h>
 #include <ripple/protocol/IOUAmount.h>
-#include <ripple/protocol/XRPAmount.h>
+#include <ripple/basics/XRPAmount.h>
 
 #include <algorithm>
 #include <numeric>

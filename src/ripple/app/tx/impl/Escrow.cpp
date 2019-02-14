@@ -32,7 +32,7 @@
 #include <ripple/protocol/Feature.h>
 #include <ripple/protocol/Indexes.h>
 #include <ripple/protocol/TxFlags.h>
-#include <ripple/protocol/XRPAmount.h>
+#include <ripple/basics/XRPAmount.h>
 
 // During an EscrowFinish, the transaction must specify both
 // a condition and a fulfillment. We track whether that
@@ -349,17 +349,17 @@ EscrowFinish::preflight (PreflightContext const& ctx)
     return tesSUCCESS;
 }
 
-std::uint64_t
+FeeUnit64
 EscrowFinish::calculateBaseFee (
     ReadView const& view,
     STTx const& tx)
 {
-    std::uint64_t extraFee = 0;
+    FeeUnit64 extraFee{ 0 };
 
     if (auto const fb = tx[~sfFulfillment])
     {
-        extraFee += view.fees().units *
-            (32 + safe_cast<std::uint64_t> (fb->size() / 16));
+        extraFee += safe_cast<FeeUnit64>(view.fees().units) *
+            (32 + (fb->size() / 16));
     }
 
     return Transactor::calculateBaseFee (view, tx) + extraFee;

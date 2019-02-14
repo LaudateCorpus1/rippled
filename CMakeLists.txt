@@ -1814,11 +1814,13 @@ install (
     src/ripple/basics/StringUtilities.h
     src/ripple/basics/ToString.h
     src/ripple/basics/UnorderedContainers.h
+    src/ripple/basics/XRPAmount.h
     src/ripple/basics/algorithm.h
     src/ripple/basics/base_uint.h
     src/ripple/basics/chrono.h
     src/ripple/basics/contract.h
     src/ripple/basics/date.h
+    src/ripple/basics/feeunits.h
     src/ripple/basics/hardened_hash.h
     src/ripple/basics/strHex.h
   DESTINATION include/ripple/basics)
@@ -1896,7 +1898,6 @@ install (
     src/ripple/protocol/TxFlags.h
     src/ripple/protocol/TxFormats.h
     src/ripple/protocol/UintTypes.h
-    src/ripple/protocol/XRPAmount.h
     src/ripple/protocol/digest.h
     src/ripple/protocol/jss.h
     src/ripple/protocol/tokens.h
@@ -2425,6 +2426,7 @@ else ()
     src/test/basics/base64_test.cpp
     src/test/basics/base_uint_test.cpp
     src/test/basics/contract_test.cpp
+    src/test/basics/feeunits_test.cpp
     src/test/basics/hardened_hash_test.cpp
     src/test/basics/mulDiv_test.cpp
     src/test/basics/qalloc_test.cpp

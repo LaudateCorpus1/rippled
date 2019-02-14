@@ -25,7 +25,7 @@
 #include <ripple/ledger/PaymentSandbox.h>
 #include <ripple/protocol/IOUAmount.h>
 #include <ripple/protocol/Quality.h>
-#include <ripple/protocol/XRPAmount.h>
+#include <ripple/basics/XRPAmount.h>
 
 #include <boost/container/flat_set.hpp>
 

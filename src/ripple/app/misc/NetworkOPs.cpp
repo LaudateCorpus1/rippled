@@ -175,7 +175,7 @@ class NetworkOPsImp final
     {
         ServerFeeSummary() = default;
 
-        ServerFeeSummary(std::uint64_t fee,
+        ServerFeeSummary(XRPAmount fee,
                          TxQ::Metrics&& escalationMetrics,
                          LoadFeeTrack const & loadFeeTrack);
         bool
@@ -189,7 +189,7 @@ class NetworkOPsImp final
 
         std::uint32_t loadFactorServer = 256;
         std::uint32_t loadBaseServer = 256;
-        std::uint64_t baseFee = 10;
+        XRPAmount baseFee{ 10 };
         boost::optional<TxQ::Metrics> em = boost::none;
     };
 
@@ -1598,7 +1598,7 @@ void NetworkOPsImp::pubManifest (Manifest const& mo)
 }
 
 NetworkOPsImp::ServerFeeSummary::ServerFeeSummary(
-        std::uint64_t fee,
+        XRPAmount fee,
         TxQ::Metrics&& escalationMetrics,
         LoadFeeTrack const & loadFeeTrack)
     : loadFactorServer{loadFeeTrack.getLoadFactor()}
@@ -1629,6 +1629,15 @@ NetworkOPsImp::ServerFeeSummary::operator !=(NetworkOPsImp::ServerFeeSummary con
     return false;
 }
 
+// Need to cap to uint64 to uint32 due to JSON limitations
+static std::uint32_t trunc32(std::uint64_t v)
+{
+    constexpr std::uint64_t max32 =
+        std::numeric_limits<std::uint32_t>::max();
+
+    return std::min(max32, v);
+};
+
 void NetworkOPsImp::pubServer ()
 {
     // VFALCO TODO Don't hold the lock across calls to send...make a copy of the
@@ -1645,21 +1654,11 @@ void NetworkOPsImp::pubServer ()
             app_.getTxQ().getMetrics(*app_.openLedger().current()),
             app_.getFeeTrack()};
 
-        // Need to cap to uint64 to uint32 due to JSON limitations
-        auto clamp = [](std::uint64_t v)
-        {
-            constexpr std::uint64_t max32 =
-                std::numeric_limits<std::uint32_t>::max();
-
-            return static_cast<std::uint32_t>(std::min(max32, v));
-        };
-
-
         jvObj [jss::type] = "serverStatus";
         jvObj [jss::server_status] = strOperatingMode ();
         jvObj [jss::load_base] = f.loadBaseServer;
         jvObj [jss::load_factor_server] = f.loadFactorServer;
-        jvObj [jss::base_fee] = clamp(f.baseFee);
+        jvObj [jss::base_fee] = f.baseFee.json();
 
         if(f.em)
         {
@@ -1668,11 +1667,13 @@ void NetworkOPsImp::pubServer ()
                     mulDiv(f.em->openLedgerFeeLevel, f.loadBaseServer,
                         f.em->referenceFeeLevel).second);
 
-            jvObj [jss::load_factor]   = clamp(loadFactor);
-            jvObj [jss::load_factor_fee_escalation] = clamp(f.em->openLedgerFeeLevel);
-            jvObj [jss::load_factor_fee_queue] = clamp(f.em->minProcessingFeeLevel);
-            jvObj [jss::load_factor_fee_reference]
-                = clamp(f.em->referenceFeeLevel);
+            jvObj [jss::load_factor]   = trunc32(loadFactor);
+            jvObj [jss::load_factor_fee_escalation] =
+                f.em->openLedgerFeeLevel.json();
+            jvObj [jss::load_factor_fee_queue] =
+                f.em->minProcessingFeeLevel.json();
+            jvObj [jss::load_factor_fee_reference] =
+                f.em->referenceFeeLevel.json();
 
         }
         else
@@ -2229,16 +2230,13 @@ Json::Value NetworkOPsImp::getServerInfo (bool human, bool admin, bool counters)
         escalationMetrics.referenceFeeLevel;
 
     auto const loadFactor = std::max(safe_cast<std::uint64_t>(loadFactorServer),
-        mulDiv(loadFactorFeeEscalation, loadBaseServer, loadBaseFeeEscalation).second);
+        mulDiv(loadFactorFeeEscalation, loadBaseServer,
+            loadBaseFeeEscalation).second);
 
     if (!human)
     {
-        constexpr std::uint64_t max32 =
-            std::numeric_limits<std::uint32_t>::max();
-
         info[jss::load_base] = loadBaseServer;
-        info[jss::load_factor] = static_cast<std::uint32_t>(
-            std::min(max32, loadFactor));
+        info[jss::load_factor] = trunc32(loadFactor);
         info[jss::load_factor_server] = loadFactorServer;
 
         /* Json::Value doesn't support uint64, so clamp to max
@@ -2247,14 +2245,11 @@ Json::Value NetworkOPsImp::getServerInfo (bool human, bool admin, bool counters)
             that high.
         */
         info[jss::load_factor_fee_escalation] =
-            static_cast<std::uint32_t> (std::min(
-                max32, loadFactorFeeEscalation));
+            loadFactorFeeEscalation.json();
         info[jss::load_factor_fee_queue] =
-            static_cast<std::uint32_t> (std::min(
-                max32, escalationMetrics.minProcessingFeeLevel));
+            escalationMetrics.minProcessingFeeLevel.json();
         info[jss::load_factor_fee_reference] =
-            static_cast<std::uint32_t> (std::min(
-                max32, loadBaseFeeEscalation));
+            loadBaseFeeEscalation.json();
     }
     else
     {
@@ -2281,14 +2276,15 @@ Json::Value NetworkOPsImp::getServerInfo (bool human, bool admin, bool counters)
         }
         if (loadFactorFeeEscalation !=
                 escalationMetrics.referenceFeeLevel &&
-                    (admin || loadFactorFeeEscalation != loadFactor))
+                (admin ||
+                loadFactorFeeEscalation != FeeLevel64{ loadFactor }))
             info[jss::load_factor_fee_escalation] =
-                static_cast<double> (loadFactorFeeEscalation) /
+                static_cast<FeeLevelDouble>(loadFactorFeeEscalation) /
                     escalationMetrics.referenceFeeLevel;
         if (escalationMetrics.minProcessingFeeLevel !=
                 escalationMetrics.referenceFeeLevel)
             info[jss::load_factor_fee_queue] =
-                static_cast<double> (
+                static_cast<FeeLevelDouble>(
                     escalationMetrics.minProcessingFeeLevel) /
                         escalationMetrics.referenceFeeLevel;
     }
@@ -2303,33 +2299,35 @@ Json::Value NetworkOPsImp::getServerInfo (bool human, bool admin, bool counters)
 
     if (lpClosed)
     {
-        std::uint64_t baseFee = lpClosed->fees().base;
-        std::uint64_t baseRef = lpClosed->fees().units;
+        XRPAmount const baseFee = lpClosed->fees().base;
         Json::Value l (Json::objectValue);
         l[jss::seq] = Json::UInt (lpClosed->info().seq);
         l[jss::hash] = to_string (lpClosed->info().hash);
 
         if (!human)
         {
-            l[jss::base_fee] = Json::Value::UInt (baseFee);
-            l[jss::reserve_base] = Json::Value::UInt (lpClosed->fees().accountReserve(0).drops());
+            l[jss::base_fee] = baseFee.json();
+            l[jss::reserve_base] = lpClosed->fees().accountReserve(0).json();
             l[jss::reserve_inc] =
-                    Json::Value::UInt (lpClosed->fees().increment);
-            l[jss::close_time] =
-                    Json::Value::UInt (lpClosed->info().closeTime.time_since_epoch().count());
+                    lpClosed->fees().increment.json();
+            l[jss::close_time] = Json::Value::UInt (
+                lpClosed->info().closeTime.time_since_epoch().count());
         }
         else
         {
-            l[jss::base_fee_xrp] = static_cast<double> (baseFee) /
-                    SYSTEM_CURRENCY_PARTS;
+            // Make a local specialization of the TaggedFee class, using
+            // XRPAmount as the "unit" to make some of the math here easier.
+            using DropsDouble = units::TaggedFee<XRPAmount, double>;
+
+            l[jss::base_fee_xrp] =
+                static_cast<DropsDouble>(baseFee) /
+                    DROPS_PER_XRP;
             l[jss::reserve_base_xrp]   =
-                static_cast<double> (Json::UInt (
-                    lpClosed->fees().accountReserve(0).drops() * baseFee / baseRef))
-                    / SYSTEM_CURRENCY_PARTS;
+                static_cast<DropsDouble>(
+                    lpClosed->fees().accountReserve(0)) / DROPS_PER_XRP;
             l[jss::reserve_inc_xrp]    =
-                static_cast<double> (Json::UInt (
-                    lpClosed->fees().increment * baseFee / baseRef))
-                    / SYSTEM_CURRENCY_PARTS;
+                static_cast<DropsDouble>(
+                    lpClosed->fees().increment) / DROPS_PER_XRP;
 
             auto const nowOffset = app_.timeKeeper().nowOffset();
             if (std::abs (nowOffset.count()) >= 60)
@@ -2447,11 +2445,11 @@ void NetworkOPsImp::pubLedger (
             jvObj[jss::ledger_time]
                     = Json::Value::UInt (lpAccepted->info().closeTime.time_since_epoch().count());
 
-            jvObj[jss::fee_ref]
-                    = Json::UInt (lpAccepted->fees().units);
-            jvObj[jss::fee_base] = Json::UInt (lpAccepted->fees().base);
-            jvObj[jss::reserve_base] = Json::UInt (lpAccepted->fees().accountReserve(0).drops());
-            jvObj[jss::reserve_inc] = Json::UInt (lpAccepted->fees().increment);
+            jvObj[jss::fee_ref] = lpAccepted->fees().units.json();
+            jvObj[jss::fee_base] = lpAccepted->fees().base.json();
+            jvObj[jss::reserve_base] =
+                lpAccepted->fees().accountReserve(0).json();
+            jvObj[jss::reserve_inc] = lpAccepted->fees().increment.json();
 
             jvObj[jss::txn_count] = Json::UInt (alpAccepted->getTxnCount ());
 
@@ -2817,13 +2815,13 @@ bool NetworkOPsImp::subLedger (InfoSub::ref isrListener, Json::Value& jvResult)
     {
         jvResult[jss::ledger_index]    = lpClosed->info().seq;
         jvResult[jss::ledger_hash]     = to_string (lpClosed->info().hash);
-        jvResult[jss::ledger_time]
-            = Json::Value::UInt(lpClosed->info().closeTime.time_since_epoch().count());
-        jvResult[jss::fee_ref]
-                = Json::UInt (lpClosed->fees().units);
-        jvResult[jss::fee_base]        = Json::UInt (lpClosed->fees().base);
-        jvResult[jss::reserve_base]    = Json::UInt (lpClosed->fees().accountReserve(0).drops());
-        jvResult[jss::reserve_inc]     = Json::UInt (lpClosed->fees().increment);
+        jvResult[jss::ledger_time] = Json::Value::UInt(
+            lpClosed->info().closeTime.time_since_epoch().count());
+        jvResult[jss::fee_ref] = lpClosed->fees().units.json();
+        jvResult[jss::fee_base]        = lpClosed->fees().base.json();
+        jvResult[jss::reserve_base]    =
+            lpClosed->fees().accountReserve(0).json();
+        jvResult[jss::reserve_inc]     = lpClosed->fees().increment.json();
     }
 
     if ((mMode >= omSYNCING) && !isNeedNetworkLedger ())

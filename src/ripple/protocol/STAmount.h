@@ -27,7 +27,7 @@
 #include <ripple/protocol/STBase.h>
 #include <ripple/protocol/Issue.h>
 #include <ripple/protocol/IOUAmount.h>
-#include <ripple/protocol/XRPAmount.h>
+#include <ripple/basics/XRPAmount.h>
 #include <memory>
 
 namespace ripple {

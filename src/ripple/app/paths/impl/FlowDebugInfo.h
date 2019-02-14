@@ -23,7 +23,7 @@
 #include <ripple/app/paths/impl/AmountSpec.h>
 #include <ripple/ledger/PaymentSandbox.h>
 #include <ripple/protocol/IOUAmount.h>
-#include <ripple/protocol/XRPAmount.h>
+#include <ripple/basics/XRPAmount.h>
 
 #include <boost/container/flat_map.hpp>
 #include <boost/optional.hpp>

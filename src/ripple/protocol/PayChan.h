@@ -23,7 +23,7 @@
 #include <ripple/basics/base_uint.h>
 #include <ripple/protocol/HashPrefix.h>
 #include <ripple/protocol/Serializer.h>
-#include <ripple/protocol/XRPAmount.h>
+#include <ripple/basics/XRPAmount.h>
 
 namespace ripple {
 

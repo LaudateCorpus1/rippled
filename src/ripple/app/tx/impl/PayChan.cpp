@@ -29,7 +29,7 @@
 #include <ripple/protocol/PublicKey.h>
 #include <ripple/protocol/st.h>
 #include <ripple/protocol/TxFlags.h>
-#include <ripple/protocol/XRPAmount.h>
+#include <ripple/basics/XRPAmount.h>
 
 namespace ripple {
 

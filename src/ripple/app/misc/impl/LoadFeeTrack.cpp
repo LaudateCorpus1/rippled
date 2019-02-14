@@ -19,6 +19,7 @@
 
 #include <ripple/app/misc/LoadFeeTrack.h>
 #include <ripple/basics/contract.h>
+#include <ripple/basics/feeunits.h>
 #include <ripple/basics/Log.h>
 #include <ripple/basics/safe_cast.h>
 #include <ripple/core/Config.h>
@@ -83,27 +84,70 @@ LoadFeeTrack::lowerLocalFee ()
 
 //------------------------------------------------------------------------------
 
-template <class T1, class T2,
-    class = std::enable_if_t<
-        std::is_integral_v<T1> &&
-        std::is_integral_v<T2>>
->
-void lowestTerms(T1& a,  T2& b)
+namespace detail
 {
-    if (auto const gcd = std::gcd(a, b))
-    {
-        a /= gcd;
-        b /= gcd;
-    }
+
+struct xrp_unit_product_tag;
+
+using xrp_unit_product =
+    units::TaggedFee<detail::xrp_unit_product_tag, std::uint64_t>;
+
+} // detail
+
+detail::xrp_unit_product
+operator* (FeeUnit64 lhs, XRPAmount rhs)
+{
+    return detail::xrp_unit_product{ lhs.fee() * rhs.drops() };
 }
 
+XRPAmount
+operator/ (detail::xrp_unit_product lhs, FeeUnit64 rhs)
+{
+    return{ lhs.fee() / rhs.fee() };
+}
+
+
 // Scale using load as well as base rate
-std::uint64_t
-scaleFeeLoad(std::uint64_t fee, LoadFeeTrack const& feeTrack,
+XRPAmount
+scaleFeeLoad(FeeUnit64 fee, LoadFeeTrack const& feeTrack,
     Fees const& fees, bool bUnlimited)
 {
     if (fee == 0)
-        return fee;
+        return 0;
+
+    auto lowestTerms1 = [](auto& a, auto& b)
+    {
+        if (auto const g = std::gcd(a, b.value()))
+        {
+            a /= g;
+            b /= g;
+        }
+    };
+
+    // Normally, types with different units wouldn't be mathematically
+    // compatible. This function is an exception.
+    auto lowestTerms2 = [](auto& a, auto& b)
+    {
+        if (auto const g = std::gcd(a.value(), b.value()))
+        {
+            a /= g;
+            b /= g;
+        }
+    };
+
+    // Normally, these types wouldn't be swappable. This function is an
+    // exception
+    auto maybe_swap = [](auto& lhs, auto& rhs)
+    {
+        if (lhs.value() < rhs.value())
+        {
+            auto tmp = lhs.value();
+            lhs = rhs.value();
+            rhs = tmp;
+        }
+        // double check
+        assert(lhs.value() >= rhs.value());
+    };
 
     // Collect the fee rates
     auto [feeFactor, uRemFee] = feeTrack.getScalingFactors();
@@ -121,43 +165,43 @@ scaleFeeLoad(std::uint64_t fee, LoadFeeTrack const& feeTrack,
     // The denominator of the fraction we're trying to compute.
     // fees.units and lftNormalFee are both 32 bit,
     //  so the multiplication can't overflow.
-    auto den = safe_cast<std::uint64_t>(fees.units)
+    auto den = FeeUnit64{ fees.units }
         * safe_cast<std::uint64_t>(feeTrack.getLoadBase());
     // Reduce fee * baseFee * feeFactor / (fees.units * lftNormalFee)
     // to lowest terms.
-    lowestTerms(fee, den);
-    lowestTerms(baseFee, den);
-    lowestTerms(feeFactor, den);
+    lowestTerms2(fee, den);
+    lowestTerms2(baseFee, den);
+    lowestTerms1(feeFactor, den);
 
     // fee and baseFee are 64 bit, feeFactor is 32 bit
     // Order fee and baseFee largest first
-    if (fee < baseFee)
-        std::swap(fee, baseFee);
+    maybe_swap(fee, baseFee);
     // If baseFee * feeFactor overflows, the final result will overflow
-    const auto max = std::numeric_limits<std::uint64_t>::max();
+    constexpr XRPAmount max =
+        std::numeric_limits<XRPAmount::value_type>::max();
     if (baseFee > max / feeFactor)
         Throw<std::overflow_error> ("scaleFeeLoad");
     baseFee *= feeFactor;
     // Reorder fee and baseFee
-    if (fee < baseFee)
-        std::swap(fee, baseFee);
-    // If fee * baseFee / den might overflow...
-    if (fee > max / baseFee)
+    maybe_swap(fee, baseFee);
+    // If fee * baseFee overflows, do the division first
+    if (fee > FeeUnit64{ max / baseFee })
     {
         // Do the division first, on the larger of fee and baseFee
-        fee /= den;
-        if (fee > max / baseFee)
+        auto const factor = fee / den;
+        // If factor * basefee ( == fee / den * baseFee ) will overflow,
+        //  throw
+        if (factor > max / baseFee)
             Throw<std::overflow_error> ("scaleFeeLoad");
-        fee *= baseFee;
+        return factor * baseFee;
     }
     else
     {
         // Otherwise fee * baseFee won't overflow,
         //   so do it prior to the division.
-        fee *= baseFee;
-        fee /= den;
+        auto const product = fee * baseFee;
+        return product / den;
     }
-    return fee;
 }
 
 } // ripple

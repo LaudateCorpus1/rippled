@@ -18,7 +18,9 @@
 //==============================================================================
 
 #include <ripple/app/tx/impl/InvariantCheck.h>
+#include <ripple/basics/feeunits.h>
 #include <ripple/basics/Log.h>
+#include <ripple/protocol/SystemParameters.h>
 
 namespace ripple {
 
@@ -48,7 +50,7 @@ TransactionFeeCheck::finalize(
 
     // We should never charge a fee that's greater than or equal to the
     // entire XRP supply.
-    if (fee.drops() >= SYSTEM_CURRENCY_START)
+    if (fee >= INITIAL_XRP)
     {
         JLOG(j.fatal()) << "Invariant failed: fee paid exceeds system limit: " << fee.drops();
         return false;
@@ -163,11 +165,11 @@ XRPBalanceChecks::visitEntry(
         if (!balance.native())
             return true;
 
-        auto const drops = balance.xrp().drops();
+        auto const drops = balance.xrp();
 
         // Can't have more than the number of drops instantiated
         // in the genesis ledger.
-        if (drops > SYSTEM_CURRENCY_START)
+        if (drops > INITIAL_XRP)
             return true;
 
         // Can't have a negative balance (0 is OK)
@@ -251,10 +253,10 @@ NoZeroEscrow::visitEntry(
         if (!amount.native())
             return true;
 
-        if (amount.xrp().drops() <= 0)
+        if (amount.xrp() <= 0)
             return true;
 
-        if (amount.xrp().drops() >= SYSTEM_CURRENCY_START)
+        if (amount.xrp() >= INITIAL_XRP)
             return true;
 
         return false;

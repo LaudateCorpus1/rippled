@@ -1,0 +1,540 @@
+//------------------------------------------------------------------------------
+/*
+    This file is part of rippled: https://github.com/ripple/rippled
+    Copyright (c) 2019 Ripple Labs Inc.
+
+    Permission to use, copy, modify, and/or distribute this software for any
+    purpose  with  or without fee is hereby granted, provided that the above
+    copyright notice and this permission notice appear in all copies.
+
+    THE  SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+    WITH  REGARD  TO  THIS  SOFTWARE  INCLUDING  ALL  IMPLIED  WARRANTIES  OF
+    MERCHANTABILITY  AND  FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+    ANY  SPECIAL ,  DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+    WHATSOEVER  RESULTING  FROM  LOSS  OF USE, DATA OR PROFITS, WHETHER IN AN
+    ACTION  OF  CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+    OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+*/
+
+#ifndef BASICS_FEES_H_INCLUDED
+#define BASICS_FEES_H_INCLUDED
+
+#include <ripple/basics/BasicConfig.h>
+#include <ripple/basics/contract.h>
+#include <ripple/basics/safe_cast.h>
+#include <ripple/basics/XRPAmount.h>
+#include <ripple/beast/cxx17/type_traits.h>
+#include <boost/multiprecision/cpp_int.hpp>
+#include <limits>
+#include <utility>
+
+#include <cassert>
+#include <cmath>
+#include <string>
+#include <iosfwd>
+#include <ios>
+#include <sstream>
+
+namespace ripple {
+
+namespace units {
+
+struct feeunit_tag;
+struct feelevel_tag;
+struct unitless_tag;
+
+template<class T>
+using enable_if_unit_t = typename std::enable_if_t<
+    std::is_class<T>::value &&
+    std::is_object<typename T::unit_type>::value &&
+    std::is_object<typename T::value_type>::value
+>;
+
+template<class T, class = enable_if_unit_t<T> >
+constexpr bool is_usable_unit_v =
+    std::is_same_v<typename T::unit_type, units::feeunit_tag> ||
+    std::is_same_v<typename T::unit_type, units::feelevel_tag> ||
+    std::is_same_v<typename T::unit_type, units::unitless_tag> ||
+    std::is_same_v<typename T::unit_type, XRPAmount>;
+
+
+template<class UnitTag, class T>
+class TaggedFee
+    : private boost::totally_ordered <TaggedFee<UnitTag, T>>
+    , private boost::additive <TaggedFee<UnitTag, T>>
+    , private boost::dividable <TaggedFee<UnitTag, T>, T>
+    , private boost::modable <TaggedFee<UnitTag, T>, T>
+    , private boost::unit_steppable <TaggedFee<UnitTag, T>>
+{
+public:
+    using unit_type = UnitTag;
+    using value_type = T;
+private:
+    value_type fee_;
+
+    typedef void (TaggedFee::*unspecified_null_pointer_constant_type)(int*******);
+
+protected:
+    template<class Other>
+    static constexpr bool is_compatible_v = std::is_integral_v<Other> &&
+        std::is_convertible_v<Other, value_type>;
+
+    template<class OtherFee, class = enable_if_unit_t<OtherFee> >
+    static constexpr bool is_compatiblefee_v =
+            is_compatible_v <typename OtherFee::value_type> &&
+            std::is_same_v<UnitTag, typename OtherFee::unit_type>;
+
+    template<class Other>
+    using enable_if_compatible_t =
+        typename std::enable_if_t<is_compatible_v<Other>>;
+
+    template<class OtherFee>
+    using enable_if_compatiblefee_t =
+        typename std::enable_if_t<is_compatiblefee_v<OtherFee>>;
+
+public:
+    TaggedFee () = default;
+    constexpr TaggedFee (TaggedFee const& other) = default;
+    constexpr TaggedFee& operator= (TaggedFee const& other) = default;
+
+    // Little trick stolen from boost::units that allows a 0 in the
+    // implicit constructor, but no other value
+    constexpr TaggedFee(unspecified_null_pointer_constant_type) : fee_()
+    {
+    }
+
+    constexpr
+    explicit
+    TaggedFee (beast::Zero)
+        : fee_ (0)
+    {
+    }
+
+    constexpr
+    TaggedFee&
+    operator= (beast::Zero)
+    {
+        fee_ = 0;
+        return *this;
+    }
+
+    constexpr
+    explicit
+    TaggedFee (value_type fee)
+        : fee_ (fee)
+    {
+    }
+
+    template <class Other,
+        class = enable_if_compatible_t <Other>>
+    constexpr
+    explicit
+    TaggedFee (Other fee)
+        : fee_ (static_cast<value_type> (fee))
+    {
+    }
+
+    template <class OtherFee,
+        class = enable_if_compatiblefee_t<OtherFee> >
+    constexpr
+    TaggedFee (OtherFee const& fee)
+        : fee_ (static_cast<value_type> (fee.value()))
+    {
+    }
+
+    template <class Other,
+        class = enable_if_compatible_t <Other>>
+    TaggedFee&
+    operator= (Other fee)
+    {
+        fee_ = static_cast<value_type> (fee);
+        return *this;
+    }
+
+    template <class OtherFee,
+        class = enable_if_compatiblefee_t <OtherFee>>
+    TaggedFee&
+    operator= (OtherFee const& fee)
+    {
+        fee_ = static_cast<value_type> (fee.value());
+        return *this;
+    }
+
+    constexpr
+    TaggedFee
+    operator* (value_type const& rhs) const
+    {
+        return TaggedFee{ fee_ * rhs };
+    }
+
+    constexpr
+    value_type
+    operator/ (TaggedFee const& rhs) const
+    {
+        return fee_ / rhs.fee_;
+    }
+
+    TaggedFee&
+    operator+= (TaggedFee const& other)
+    {
+        fee_ += other.fee();
+        return *this;
+    }
+
+    TaggedFee&
+    operator-= (TaggedFee const& other)
+    {
+        fee_ -= other.fee();
+        return *this;
+    }
+
+    TaggedFee&
+    operator++()
+    {
+        ++fee_;
+        return *this;
+    }
+
+    TaggedFee&
+    operator--()
+    {
+        --fee_;
+        return *this;
+    }
+
+    TaggedFee&
+    operator*= (value_type const& rhs)
+    {
+        fee_ *= rhs;
+        return *this;
+    }
+
+    TaggedFee&
+    operator/= (value_type const& rhs)
+    {
+        fee_ /= rhs;
+        return *this;
+    }
+
+    TaggedFee&
+    operator%= (value_type const& rhs)
+    {
+        fee_ %= rhs;
+        return *this;
+    }
+
+    TaggedFee
+    operator- () const
+    {
+        static_assert( std::is_unsigned_v<T>,
+            "- operator illegal on unsigned fee types");
+        return { -fee_ };
+    }
+
+    bool
+    operator==(TaggedFee const& other) const
+    {
+        return fee_ == other.fee_;
+    }
+
+    bool
+    operator<(TaggedFee const& other) const
+    {
+        return fee_ < other.fee_;
+    }
+
+    /** Returns true if the amount is not zero */
+    explicit
+    constexpr
+    operator bool() const noexcept
+    {
+        return fee_ != 0;
+    }
+
+    /** Return the sign of the amount */
+    constexpr
+    int
+    signum() const noexcept
+    {
+        return (fee_ < 0) ? -1 : (fee_ ? 1 : 0);
+    }
+
+    /** Returns the number of drops */
+    constexpr
+    value_type
+    fee () const
+    {
+        return fee_;
+    }
+
+    Json::Value
+    json () const
+    {
+        static_assert(is_usable_unit_v<TaggedFee>, "Invalid unit type");
+        using jsontype = std::conditional_t<std::is_signed_v<value_type>,
+            Json::Int, Json::UInt>;
+
+        constexpr auto min = std::numeric_limits<jsontype>::min();
+        constexpr auto max = std::numeric_limits<jsontype>::max();
+
+        if (fee_ < min)
+            return min;
+        if (fee_ > max)
+            return max;
+        return static_cast<jsontype>(fee_);
+    }
+
+
+    /** Returns the underlying value. Code SHOULD NOT call this
+        function unless the type has been abstracted away,
+        e.g. in a templated function.
+    */
+    constexpr
+    value_type
+    value () const
+    {
+        return fee_;
+    }
+
+    friend
+    std::istream&
+    operator>> (std::istream& s, TaggedFee& val)
+    {
+        s >> val.fee_;
+        return s;
+    }
+
+};
+
+// Output Fees as just their numeric value.
+template<class Char, class Traits, class UnitTag, class T>
+std::basic_ostream<Char, Traits>&
+operator<<(std::basic_ostream<Char, Traits>& os,
+    const TaggedFee<UnitTag, T>& q)
+{
+    return os << q.value();
+}
+
+template<class UnitTag, class T>
+std::string
+to_string (TaggedFee<UnitTag, T> const& amount)
+{
+    return std::to_string (amount.fee ());
+}
+
+template<class UnitTag, class T>
+constexpr
+TaggedFee<UnitTag, T>
+operator*(T lhs, TaggedFee<UnitTag, T> const& rhs)
+{
+    // multiplication is commutative
+    return rhs * lhs;
+}
+
+template<class Source, class = enable_if_unit_t<Source> >
+constexpr bool can_muldiv_source_v =
+    std::is_convertible_v<typename Source::value_type, std::uint64_t>;
+
+template<class Dest, class = enable_if_unit_t<Dest> >
+constexpr bool can_muldiv_dest_v =
+    can_muldiv_source_v<Dest> &&    // Dest is also a source
+    std::is_convertible_v<std::uint64_t, typename Dest::value_type> &&
+    sizeof(typename Dest::value_type) >= sizeof(std::uint64_t);
+
+template<class Source1, class Source2, 
+    class = enable_if_unit_t<Source1>,
+    class = enable_if_unit_t<Source2>>
+constexpr bool can_muldiv_sources_v =
+    can_muldiv_source_v<Source1> &&
+    can_muldiv_source_v<Source2> &&
+    std::is_same_v<typename Source1::unit_type, typename Source2::unit_type>;
+
+template<class Source1, class Source2, class Dest,
+    class = enable_if_unit_t<Source1>,
+    class = enable_if_unit_t<Source2>,
+    class = enable_if_unit_t<Dest>>
+constexpr bool can_muldiv_v =
+    can_muldiv_sources_v<Source1, Source2> &&
+    can_muldiv_dest_v<Dest>;
+    // Source and Dest can be the same by default
+
+template<class Source1, class Source2, class Dest,
+    class = enable_if_unit_t<Source1>,
+    class = enable_if_unit_t<Source2>,
+    class = enable_if_unit_t<Dest>>
+constexpr bool can_muldiv_commute_v =
+    can_muldiv_v<Source1, Source2, Dest> &&
+    ! std::is_same_v<typename Source1::unit_type, typename Dest::unit_type>;
+
+template<class T>
+using enable_muldiv_source_t =
+    typename std::enable_if_t< can_muldiv_source_v<T> >;
+
+template<class T>
+using enable_muldiv_dest_t =
+    typename std::enable_if_t< can_muldiv_dest_v<T> >;
+
+template<class Source1, class Source2>
+using enable_muldiv_sources_t =
+    typename std::enable_if_t< can_muldiv_sources_v<Source1, Source2> >;
+
+template<class Source1, class Source2, class Dest>
+using enable_muldiv_t =
+    typename std::enable_if_t< can_muldiv_v<Source1, Source2, Dest> >;
+
+template<class Source1, class Source2, class Dest>
+using enable_muldiv_commute_t =
+    typename std::enable_if_t< can_muldiv_commute_v<Source1, Source2, Dest> >;
+
+template<class T>
+TaggedFee<unitless_tag, T>
+scalar(T value)
+{
+    return TaggedFee<unitless_tag, T>{ value };
+}
+
+template<class Source1, class Source2, class Dest,
+    class = enable_muldiv_t<Source1, Source2, Dest> >
+std::pair<bool, Dest>
+mulDivU(Source1 value, Dest mul, Source2 div)
+{
+    // Shortcuts, since these happen a lot in the real world
+    if (value == div)
+        return { true, mul };
+    if (mul.value() == div.value())
+        return { true, Dest{ value.value() } };
+
+    using namespace boost::multiprecision;
+    using desttype = typename Dest::value_type;
+
+    constexpr auto max =
+        std::numeric_limits<desttype>::max();
+
+    if(value.value() < 0 || mul.value() < 0 || div.value() < 0)
+    {
+        // split the asserts so if one hits, the user can tell which
+        // without a debugger.
+        assert(value.value() >= 0);
+        assert(mul.value() >= 0);
+        assert(div.value() >= 0);
+        return { false, Dest{ max } };
+    }
+
+    uint128_t product;
+    product = multiply(product,
+        static_cast<std::uint64_t>(value.value()),
+        static_cast<std::uint64_t>(mul.value()));
+
+    auto quotient = product / div.value();
+
+    if (quotient > max)
+        return { false, Dest{ max } };
+
+    return { true, Dest{ static_cast<desttype>(quotient) } };
+}
+
+} // units
+
+template<class T>
+using FeeUnit = units::TaggedFee<units::feeunit_tag, T>;
+using FeeUnit32 = FeeUnit<std::uint32_t>;
+using FeeUnit64 = FeeUnit<std::uint64_t>;
+
+template<class T>
+using FeeLevel = units::TaggedFee<units::feelevel_tag, T>;
+using FeeLevel64 = FeeLevel<std::uint64_t>;
+using FeeLevelDouble = FeeLevel<double>;
+
+template<class Source1, class Source2, class Dest,
+    class = units::enable_muldiv_t<Source1, Source2, Dest> >
+std::pair<bool, Dest>
+mulDiv(Source1 value, Dest mul, Source2 div)
+{
+    return units::mulDivU(value, mul, div);
+}
+
+template<class Source1, class Source2, class Dest,
+    class = units::enable_muldiv_commute_t<Source1, Source2, Dest> >
+std::pair<bool, Dest>
+mulDiv(Dest value, Source1 mul, Source2 div)
+{
+    // Multiplication is commutative
+    return units::mulDivU(mul, value, div);
+}
+
+template<class Dest,
+    class = units::enable_muldiv_dest_t<Dest> >
+std::pair<bool, Dest>
+mulDiv(std::uint64_t value,
+    Dest mul,
+    std::uint64_t div)
+{
+    // Give the scalars a non-tag so the
+    // unit-handling version gets called.
+    return units::mulDivU(units::scalar(value), mul, units::scalar(div));
+}
+
+template<class Dest,
+    class = units::enable_muldiv_dest_t<Dest> >
+std::pair<bool, Dest>
+mulDiv(Dest value, std::uint64_t mul, std::uint64_t div)
+{
+    // Multiplication is commutative
+    return mulDiv(mul, value, div);
+}
+
+template<class Source1, class Source2,
+    class = units::enable_muldiv_sources_t<Source1, Source2> >
+std::pair<bool, std::uint64_t>
+mulDiv(Source1 value,
+    std::uint64_t mul,
+    Source2 div)
+{
+    // Give the scalars a dimensionless unit so the
+    // unit-handling version gets called.
+    auto unitresult = units::mulDivU(value, units::scalar(mul), div);
+    return { unitresult.first, unitresult.second.value() };
+}
+
+template<class Source1, class Source2,
+    class = units::enable_muldiv_sources_t<Source1, Source2> >
+std::pair<bool, std::uint64_t>
+mulDiv(std::uint64_t value, Source1 mul, Source2 div)
+{
+    // Multiplication is commutative
+    return mulDiv(mul, value, div);
+}
+
+template <class Dest, class Src>
+constexpr
+std::enable_if_t
+<
+    std::is_same_v<typename Dest::unit_type, typename Src::unit_type> &&
+    std::is_integral_v<typename Dest::value_type> &&
+    std::is_integral_v<typename Src::value_type>,
+    Dest
+>
+safe_cast(Src s) noexcept
+{
+    // Dest may not have an explicit value constructor
+    return Dest{ safe_cast<typename Dest::value_type>(s.value()) };
+}
+
+template <class Dest, class Src>
+constexpr
+std::enable_if_t
+<
+    std::is_same_v<typename Dest::unit_type, typename Src::unit_type> &&
+    std::is_integral_v<typename Dest::value_type> &&
+    std::is_integral_v<typename Src::value_type>,
+    Dest
+>
+unsafe_cast(Src s) noexcept
+{
+    // Dest may not have an explicit value constructor
+    return Dest{ unsafe_cast<typename Dest::value_type>(s.value()) };
+}
+
+} // ripple
+
+#endif // BASICS_FEES_H_INCLUDED

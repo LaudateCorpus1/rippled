@@ -24,7 +24,7 @@
 
 namespace ripple {
 
-std::uint64_t
+FeeUnit64
 SetRegularKey::calculateBaseFee (
     ReadView const& view,
     STTx const& tx)
