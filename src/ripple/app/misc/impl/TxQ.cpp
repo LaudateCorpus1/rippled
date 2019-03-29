@@ -198,7 +198,7 @@ TxQ::FeeMetrics::scaleFeeLevel(Snapshot const& snapshot,
 namespace detail {
 
 static
-std::pair<bool, std::uint64_t>
+std::pair<bool, std::size_t>
 sumOfFirstSquares(std::size_t x)
 {
     // sum(n = 1->x) : n * n = x(x + 1)(2x + 1) / 6
@@ -210,7 +210,7 @@ sumOfFirstSquares(std::size_t x)
     // in a ledger, this is the least of our problems.
     if (x >= (1 << 21))
         return std::make_pair(false,
-            std::numeric_limits<std::uint64_t>::max());
+            std::numeric_limits<std::size_t>::max());
     return std::make_pair(true, (x * (x + 1) * (2 * x + 1)) / 6);
 }
 
