@@ -60,17 +60,17 @@ brew install git cmake pkg-config protobuf openssl ninja
 
 ### Build Boost
 
-Boost 1.67 or later is required.
+Boost 1.70 or later is required.
 
 We want to compile boost with clang/libc++
 
-Download [a release](https://dl.bintray.com/boostorg/release/1.68.0/source/boost_1_68_0.tar.bz2)
+Download [a release](https://dl.bintray.com/boostorg/release/1.70.0/source/boost_1_70_0.zip)
 
 Extract it to a folder, making note of where, open a terminal, then:
 
 ```
 ./bootstrap.sh
-./b2 cxxflags="-std=c++14"
+./b2 cxxflags="-std=c++14"  visibility=global
 ```
 
 Create an environment variable `BOOST_ROOT` in one of your `rc` files, pointing
