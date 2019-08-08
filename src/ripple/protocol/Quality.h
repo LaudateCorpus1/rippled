@@ -20,10 +20,10 @@
 #ifndef RIPPLE_PROTOCOL_QUALITY_H_INCLUDED
 #define RIPPLE_PROTOCOL_QUALITY_H_INCLUDED
 
-#include <ripple/protocol/AmountConversions.h>
-#include <ripple/protocol/IOUAmount.h>
-#include <ripple/protocol/STAmount.h>
+#include <ripple/basics/IOUAmount.h>
 #include <ripple/basics/XRPAmount.h>
+#include <ripple/protocol/AmountConversions.h>
+#include <ripple/protocol/STAmount.h>
 
 #include <cstdint>
 #include <ostream>

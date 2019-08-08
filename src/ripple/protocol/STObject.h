@@ -88,7 +88,7 @@ private:
 
         template <class Fee>
         std::enable_if_t<
-            units::is_usable_unit_v<Fee> &&
+            feeunit::is_usable_unit_v<Fee> &&
             std::is_assignable_v<T, typename Fee::value_type>,
                 ValueProxy&>
         operator= (Fee const& u);
@@ -223,7 +223,7 @@ private:
 
         template <class Fee>
         std::enable_if_t<
-            units::is_usable_unit_v<Fee> &&
+            feeunit::is_usable_unit_v<Fee> &&
             std::is_assignable_v<T, typename Fee::value_type>,
                 OptionalProxy&>
         operator= (Fee const& u);
@@ -754,7 +754,7 @@ STObject::ValueProxy<T>::operator= (U&& u)
 template <class T>
 template <class Fee>
 std::enable_if_t<
-    units::is_usable_unit_v<Fee> &&
+    feeunit::is_usable_unit_v<Fee> &&
     std::is_assignable_v<T, typename Fee::value_type>,
         STObject::ValueProxy<T>&>
 STObject::ValueProxy<T>::operator= (Fee const& u)
@@ -853,7 +853,7 @@ STObject::OptionalProxy<T>::operator=(U&& u)
 template <class T>
 template <class Fee>
 std::enable_if_t<
-    units::is_usable_unit_v<Fee> &&
+    feeunit::is_usable_unit_v<Fee> &&
     std::is_assignable_v<T, typename Fee::value_type>,
         STObject::OptionalProxy<T>&>
 STObject::OptionalProxy<T>::operator= (Fee const& u)

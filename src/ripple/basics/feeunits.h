@@ -37,7 +37,7 @@
 
 namespace ripple {
 
-namespace units {
+namespace feeunit {
 
 struct feeunit_tag;
 struct feelevel_tag;
@@ -52,9 +52,9 @@ using enable_if_unit_t = typename std::enable_if_t<
 
 template<class T, class = enable_if_unit_t<T> >
 constexpr bool is_usable_unit_v =
-    std::is_same_v<typename T::unit_type, units::feeunit_tag> ||
-    std::is_same_v<typename T::unit_type, units::feelevel_tag> ||
-    std::is_same_v<typename T::unit_type, units::unitless_tag> ||
+    std::is_same_v<typename T::unit_type, feeunit_tag> ||
+    std::is_same_v<typename T::unit_type, feelevel_tag> ||
+    std::is_same_v<typename T::unit_type, unitless_tag> ||
     std::is_same_v<typename T::unit_type, XRPAmount>;
 
 
@@ -433,37 +433,37 @@ mulDivU(Source1 value, Dest mul, Source2 div)
     return { true, Dest{ static_cast<desttype>(quotient) } };
 }
 
-} // units
+} // feeunit
 
 template<class T>
-using FeeUnit = units::TaggedFee<units::feeunit_tag, T>;
+using FeeUnit = feeunit::TaggedFee<feeunit::feeunit_tag, T>;
 using FeeUnit32 = FeeUnit<std::uint32_t>;
 using FeeUnit64 = FeeUnit<std::uint64_t>;
 
 template<class T>
-using FeeLevel = units::TaggedFee<units::feelevel_tag, T>;
+using FeeLevel = feeunit::TaggedFee<feeunit::feelevel_tag, T>;
 using FeeLevel64 = FeeLevel<std::uint64_t>;
 using FeeLevelDouble = FeeLevel<double>;
 
 template<class Source1, class Source2, class Dest,
-    class = units::enable_muldiv_t<Source1, Source2, Dest> >
+    class = feeunit::enable_muldiv_t<Source1, Source2, Dest> >
 std::pair<bool, Dest>
 mulDiv(Source1 value, Dest mul, Source2 div)
 {
-    return units::mulDivU(value, mul, div);
+    return feeunit::mulDivU(value, mul, div);
 }
 
 template<class Source1, class Source2, class Dest,
-    class = units::enable_muldiv_commute_t<Source1, Source2, Dest> >
+    class = feeunit::enable_muldiv_commute_t<Source1, Source2, Dest> >
 std::pair<bool, Dest>
 mulDiv(Dest value, Source1 mul, Source2 div)
 {
     // Multiplication is commutative
-    return units::mulDivU(mul, value, div);
+    return feeunit::mulDivU(mul, value, div);
 }
 
 template<class Dest,
-    class = units::enable_muldiv_dest_t<Dest> >
+    class = feeunit::enable_muldiv_dest_t<Dest> >
 std::pair<bool, Dest>
 mulDiv(std::uint64_t value,
     Dest mul,
@@ -471,11 +471,11 @@ mulDiv(std::uint64_t value,
 {
     // Give the scalars a non-tag so the
     // unit-handling version gets called.
-    return units::mulDivU(units::scalar(value), mul, units::scalar(div));
+    return feeunit::mulDivU(feeunit::scalar(value), mul, feeunit::scalar(div));
 }
 
 template<class Dest,
-    class = units::enable_muldiv_dest_t<Dest> >
+    class = feeunit::enable_muldiv_dest_t<Dest> >
 std::pair<bool, Dest>
 mulDiv(Dest value, std::uint64_t mul, std::uint64_t div)
 {
@@ -484,7 +484,7 @@ mulDiv(Dest value, std::uint64_t mul, std::uint64_t div)
 }
 
 template<class Source1, class Source2,
-    class = units::enable_muldiv_sources_t<Source1, Source2> >
+    class = feeunit::enable_muldiv_sources_t<Source1, Source2> >
 std::pair<bool, std::uint64_t>
 mulDiv(Source1 value,
     std::uint64_t mul,
@@ -492,12 +492,12 @@ mulDiv(Source1 value,
 {
     // Give the scalars a dimensionless unit so the
     // unit-handling version gets called.
-    auto unitresult = units::mulDivU(value, units::scalar(mul), div);
+    auto unitresult = feeunit::mulDivU(value, feeunit::scalar(mul), div);
     return { unitresult.first, unitresult.second.value() };
 }
 
 template<class Source1, class Source2,
-    class = units::enable_muldiv_sources_t<Source1, Source2> >
+    class = feeunit::enable_muldiv_sources_t<Source1, Source2> >
 std::pair<bool, std::uint64_t>
 mulDiv(std::uint64_t value, Source1 mul, Source2 div)
 {

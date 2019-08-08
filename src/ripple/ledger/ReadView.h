@@ -23,12 +23,12 @@
 #include <ripple/ledger/detail/ReadViewFwdRange.h>
 #include <ripple/basics/chrono.h>
 #include <ripple/basics/feeunits.h>
+#include <ripple/basics/IOUAmount.h>
+#include <ripple/basics/XRPAmount.h>
 #include <ripple/protocol/Indexes.h>
-#include <ripple/protocol/IOUAmount.h>
 #include <ripple/protocol/Protocol.h>
 #include <ripple/protocol/STLedgerEntry.h>
 #include <ripple/protocol/STTx.h>
-#include <ripple/basics/XRPAmount.h>
 #include <ripple/beast/hash/uhash.h>
 #include <ripple/beast/utility/Journal.h>
 #include <boost/optional.hpp>

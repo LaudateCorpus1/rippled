@@ -22,9 +22,9 @@
 
 #include <ripple/app/main/Application.h>
 #include <ripple/ledger/ApplyViewImpl.h>
+#include <ripple/basics/XRPAmount.h>
 #include <ripple/core/Config.h>
 #include <ripple/protocol/STTx.h>
-#include <ripple/basics/XRPAmount.h>
 #include <ripple/beast/utility/Journal.h>
 #include <boost/optional.hpp>
 #include <utility>

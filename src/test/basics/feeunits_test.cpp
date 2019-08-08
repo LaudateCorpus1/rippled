@@ -84,12 +84,12 @@ public:
             FeeLevel64 x{ 1024 };
             BEAST_EXPECT(x.value() == 1024);
             BEAST_EXPECT((std::is_same_v<decltype(x)::unit_type,
-                units::feelevel_tag>));
+                feeunit::feelevel_tag>));
             std::uint64_t m = 4;
             auto y = m * x;
             BEAST_EXPECT(y.value() == 4096);
             BEAST_EXPECT((std::is_same_v<decltype(y)::unit_type,
-                units::feelevel_tag>));
+                feeunit::feelevel_tag>));
 
             XRPAmount basefee{ 10 };
             FeeLevel64 referencefee{ 256 };

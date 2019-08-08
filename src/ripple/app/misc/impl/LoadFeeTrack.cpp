@@ -90,7 +90,7 @@ namespace detail
 struct xrp_unit_product_tag;
 
 using xrp_unit_product =
-    units::TaggedFee<detail::xrp_unit_product_tag, std::uint64_t>;
+    feeunit::TaggedFee<detail::xrp_unit_product_tag, std::uint64_t>;
 
 } // detail
 

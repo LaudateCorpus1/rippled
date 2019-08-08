@@ -2224,14 +2224,15 @@ Json::Value NetworkOPsImp::getServerInfo (bool human, bool admin, bool counters)
 
     auto const loadFactorServer = app_.getFeeTrack().getLoadFactor();
     auto const loadBaseServer = app_.getFeeTrack().getLoadBase();
-    auto const loadFactorFeeEscalation =
-        escalationMetrics.openLedgerFeeLevel;
-    auto const loadBaseFeeEscalation =
-        escalationMetrics.referenceFeeLevel;
+    /* Scale the escalated fee level to unitless "load factor".
+       In practice, this just strips the units, but it will continue
+       to work correctly if either base value ever changes. */
+    auto const loadFactorFeeEscalation = mulDiv(
+        escalationMetrics.openLedgerFeeLevel, loadBaseServer,
+        escalationMetrics.referenceFeeLevel).second;
 
     auto const loadFactor = std::max(safe_cast<std::uint64_t>(loadFactorServer),
-        mulDiv(loadFactorFeeEscalation, loadBaseServer,
-            loadBaseFeeEscalation).second);
+        loadFactorFeeEscalation);
 
     if (!human)
     {
@@ -2245,11 +2246,11 @@ Json::Value NetworkOPsImp::getServerInfo (bool human, bool admin, bool counters)
             that high.
         */
         info[jss::load_factor_fee_escalation] =
-            loadFactorFeeEscalation.json();
+            escalationMetrics.openLedgerFeeLevel.json();
         info[jss::load_factor_fee_queue] =
             escalationMetrics.minProcessingFeeLevel.json();
         info[jss::load_factor_fee_reference] =
-            loadBaseFeeEscalation.json();
+            escalationMetrics.referenceFeeLevel.json();
     }
     else
     {
@@ -2274,13 +2275,14 @@ Json::Value NetworkOPsImp::getServerInfo (bool human, bool admin, bool counters)
                 info[jss::load_factor_cluster] =
                     static_cast<double> (fee) / loadBaseServer;
         }
-        if (loadFactorFeeEscalation !=
+        if (escalationMetrics.openLedgerFeeLevel !=
                 escalationMetrics.referenceFeeLevel &&
                 (admin ||
-                loadFactorFeeEscalation != FeeLevel64{ loadFactor }))
+                loadFactorFeeEscalation != loadFactor))
             info[jss::load_factor_fee_escalation] =
-                static_cast<FeeLevelDouble>(loadFactorFeeEscalation) /
-                    escalationMetrics.referenceFeeLevel;
+                static_cast<FeeLevelDouble>(
+                    escalationMetrics.openLedgerFeeLevel) /
+                        escalationMetrics.referenceFeeLevel;
         if (escalationMetrics.minProcessingFeeLevel !=
                 escalationMetrics.referenceFeeLevel)
             info[jss::load_factor_fee_queue] =
@@ -2317,16 +2319,16 @@ Json::Value NetworkOPsImp::getServerInfo (bool human, bool admin, bool counters)
         {
             // Make a local specialization of the TaggedFee class, using
             // XRPAmount as the "unit" to make some of the math here easier.
-            using DropsDouble = units::TaggedFee<XRPAmount, double>;
+            using XRPDouble = feeunit::TaggedFee<XRPAmount, double>;
 
             l[jss::base_fee_xrp] =
-                static_cast<DropsDouble>(baseFee) /
+                static_cast<XRPDouble>(baseFee) /
                     DROPS_PER_XRP;
             l[jss::reserve_base_xrp]   =
-                static_cast<DropsDouble>(
+                static_cast<XRPDouble>(
                     lpClosed->fees().accountReserve(0)) / DROPS_PER_XRP;
             l[jss::reserve_inc_xrp]    =
-                static_cast<DropsDouble>(
+                static_cast<XRPDouble>(
                     lpClosed->fees().increment) / DROPS_PER_XRP;
 
             auto const nowOffset = app_.timeKeeper().nowOffset();

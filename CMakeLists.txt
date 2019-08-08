@@ -1708,6 +1708,7 @@ else ()
     src/ripple/basics/impl/contract.cpp
     src/ripple/basics/impl/CountedObject.cpp
     src/ripple/basics/impl/FileUtilities.cpp
+    src/ripple/basics/impl/IOUAmount.cpp
     src/ripple/basics/impl/Log.cpp
     src/ripple/basics/impl/strHex.cpp
     src/ripple/basics/impl/StringUtilities.cpp
@@ -1734,7 +1735,6 @@ else ()
     src/ripple/protocol/impl/ErrorCodes.cpp
     src/ripple/protocol/impl/Feature.cpp
     src/ripple/protocol/impl/HashPrefix.cpp
-    src/ripple/protocol/impl/IOUAmount.cpp
     src/ripple/protocol/impl/Indexes.cpp
     src/ripple/protocol/impl/InnerObjectFormats.cpp
     src/ripple/protocol/impl/Issue.cpp
@@ -1807,6 +1807,7 @@ install (
     src/ripple/basics/Buffer.h
     src/ripple/basics/CountedObject.h
     src/ripple/basics/FileUtilities.h
+    src/ripple/basics/IOUAmount.h
     src/ripple/basics/LocalValue.h
     src/ripple/basics/Log.h
     src/ripple/basics/safe_cast.h
@@ -1861,7 +1862,6 @@ install (
     src/ripple/protocol/ErrorCodes.h
     src/ripple/protocol/Feature.h
     src/ripple/protocol/HashPrefix.h
-    src/ripple/protocol/IOUAmount.h
     src/ripple/protocol/Indexes.h
     src/ripple/protocol/InnerObjectFormats.h
     src/ripple/protocol/Issue.h
@@ -2417,12 +2417,14 @@ else ()
     src/test/basics/Buffer_test.cpp
     src/test/basics/DetectCrash_test.cpp
     src/test/basics/FileUtilities_test.cpp
+    src/test/basics/IOUAmount_test.cpp
     src/test/basics/KeyCache_test.cpp
     src/test/basics/PerfLog_test.cpp
     src/test/basics/RangeSet_test.cpp
     src/test/basics/Slice_test.cpp
     src/test/basics/StringUtilities_test.cpp
     src/test/basics/TaggedCache_test.cpp
+    src/test/basics/XRPAmount_test.cpp
     src/test/basics/base64_test.cpp
     src/test/basics/base_uint_test.cpp
     src/test/basics/contract_test.cpp
@@ -2578,7 +2580,6 @@ else ()
          subdir: protocol
     #]===============================]
     src/test/protocol/BuildInfo_test.cpp
-    src/test/protocol/IOUAmount_test.cpp
     src/test/protocol/InnerObjectFormats_test.cpp
     src/test/protocol/Issue_test.cpp
     src/test/protocol/PublicKey_test.cpp
@@ -2591,7 +2592,6 @@ else ()
     src/test/protocol/SecretKey_test.cpp
     src/test/protocol/Seed_test.cpp
     src/test/protocol/TER_test.cpp
-    src/test/protocol/XRPAmount_test.cpp
     src/test/protocol/digest_test.cpp
     src/test/protocol/types_test.cpp
     #[===============================[
