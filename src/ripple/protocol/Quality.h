@@ -104,7 +104,7 @@ operator!= (
 //------------------------------------------------------------------------------
 
 // Ripple specific constant used for parsing qualities and other things
-#define QUALITY_ONE 1000000000
+#define QUALITY_ONE 1'000'000'000
 
 /** Represents the logical ratio of output currency to input currency.
     Internally this is stored using a custom floating point representation,

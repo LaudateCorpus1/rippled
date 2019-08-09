@@ -103,6 +103,15 @@ public:
         return { drops_ * rhs };
     }
 
+    friend
+    constexpr
+    XRPAmount
+    operator*(value_type lhs, XRPAmount const& rhs)
+    {
+        // multiplication is commutative
+        return rhs * lhs;
+    }
+
     constexpr
     value_type
     operator/(XRPAmount const& rhs) const
@@ -251,15 +260,6 @@ std::string
 to_string (XRPAmount const& amount)
 {
     return std::to_string (amount.drops ());
-}
-
-inline
-constexpr
-XRPAmount
-operator*(XRPAmount::value_type lhs, XRPAmount const& rhs)
-{
-    // multiplication is commutative
-    return rhs * lhs;
 }
 
 inline

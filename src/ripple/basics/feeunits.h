@@ -167,6 +167,15 @@ public:
         return TaggedFee{ fee_ * rhs };
     }
 
+    friend
+    constexpr
+    TaggedFee
+    operator*(value_type lhs, TaggedFee const& rhs)
+    {
+        // multiplication is commutative
+        return rhs * lhs;
+    }
+
     constexpr
     value_type
     operator/ (TaggedFee const& rhs) const
@@ -320,15 +329,6 @@ std::string
 to_string (TaggedFee<UnitTag, T> const& amount)
 {
     return std::to_string (amount.fee ());
-}
-
-template<class UnitTag, class T>
-constexpr
-TaggedFee<UnitTag, T>
-operator*(T lhs, TaggedFee<UnitTag, T> const& rhs)
-{
-    // multiplication is commutative
-    return rhs * lhs;
 }
 
 template<class Source, class = enable_if_unit_t<Source> >

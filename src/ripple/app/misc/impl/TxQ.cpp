@@ -1493,7 +1493,7 @@ TxQ::doRPC(Application& app) const
     levels[jss::median_level] = to_string(metrics.medFeeLevel);
     levels[jss::open_ledger_level] = to_string(metrics.openLedgerFeeLevel);
 
-    auto const& baseFee = view->fees().base;
+    auto const baseFee = view->fees().base;
     auto& drops = ret[jss::drops] = Json::Value();
 
     // Don't care about the overflow flags

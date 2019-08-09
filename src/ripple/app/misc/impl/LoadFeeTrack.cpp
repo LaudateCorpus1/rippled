@@ -84,29 +84,6 @@ LoadFeeTrack::lowerLocalFee ()
 
 //------------------------------------------------------------------------------
 
-namespace detail
-{
-
-struct xrp_unit_product_tag;
-
-using xrp_unit_product =
-    feeunit::TaggedFee<detail::xrp_unit_product_tag, std::uint64_t>;
-
-} // detail
-
-detail::xrp_unit_product
-operator* (FeeUnit64 lhs, XRPAmount rhs)
-{
-    return detail::xrp_unit_product{ lhs.fee() * rhs.drops() };
-}
-
-XRPAmount
-operator/ (detail::xrp_unit_product lhs, FeeUnit64 rhs)
-{
-    return{ lhs.fee() / rhs.fee() };
-}
-
-
 // Scale using load as well as base rate
 XRPAmount
 scaleFeeLoad(FeeUnit64 fee, LoadFeeTrack const& feeTrack,
@@ -182,26 +159,11 @@ scaleFeeLoad(FeeUnit64 fee, LoadFeeTrack const& feeTrack,
     if (baseFee > max / feeFactor)
         Throw<std::overflow_error> ("scaleFeeLoad");
     baseFee *= feeFactor;
-    // Reorder fee and baseFee
-    maybe_swap(fee, baseFee);
-    // If fee * baseFee overflows, do the division first
-    if (fee > FeeUnit64{ max / baseFee })
-    {
-        // Do the division first, on the larger of fee and baseFee
-        auto const factor = fee / den;
-        // If factor * basefee ( == fee / den * baseFee ) will overflow,
-        //  throw
-        if (factor > max / baseFee)
-            Throw<std::overflow_error> ("scaleFeeLoad");
-        return factor * baseFee;
-    }
-    else
-    {
-        // Otherwise fee * baseFee won't overflow,
-        //   so do it prior to the division.
-        auto const product = fee * baseFee;
-        return product / den;
-    }
+
+    auto const result = mulDiv(fee, baseFee, den);
+    if (!result.first)
+        Throw<std::overflow_error> ("scaleFeeLoad");
+    return result.second;
 }
 
 } // ripple
