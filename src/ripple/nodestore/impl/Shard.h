@@ -122,10 +122,10 @@ private:
     {
         ar & storedSeqs_;
     }
-
     static constexpr auto controlFileName = "control.txt";
 
     Application& app_;
+    mutable std::mutex mutex_;
 
     // Shard Index
     std::uint32_t const index_;
@@ -190,29 +190,37 @@ private:
     std::shared_ptr<NodeObject>
     valFetch(uint256 const& hash);
 
-    // Marks shard immutable, having stored all of its ledgers
-    void
-    setComplete();
+    // Marks shard immutable
+    // Lock over mutex_ required
+    bool
+    setComplete(std::lock_guard<std::mutex> const& lock);
 
     // Set the backend cache
+    // Lock over mutex_ required
     void
-    setCache();
+    setCache(std::lock_guard<std::mutex> const& lock);
 
     // Open/Create SQLite databases
+    // Lock over mutex_ required
     bool
-    initSQLite();
+    initSQLite(std::lock_guard<std::mutex> const& lock);
 
-    // Create SQLite entries for a ledger stored in this shard's backend
+    // Write SQLite entries for a ledger stored in this shard's backend
+    // Lock over mutex_ required
     bool
-    setSQLiteStored(std::shared_ptr<Ledger const> const& ledger);
+    setSQLiteStored(
+        std::shared_ptr<Ledger const> const& ledger,
+        std::lock_guard<std::mutex> const & lock);
 
     // Set storage and file descriptor usage stats
+    // Lock over mutex_ required
     bool
-    setFileStats();
+    setFileStats(std::lock_guard<std::mutex> const& lock);
 
     // Save the control file for an incomplete shard
+    // Lock over mutex_ required
     bool
-    saveControl();
+    saveControl(std::lock_guard<std::mutex> const& lock);
 };
 
 } // NodeStore

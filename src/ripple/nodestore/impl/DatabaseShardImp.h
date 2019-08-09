@@ -226,7 +226,8 @@ private:
     // Finds a random shard index that is not stored
     // Lock must be held
     boost::optional<std::uint32_t>
-    findShardIndexToAdd(std::uint32_t validLedgerSeq,
+    findShardIndexToAdd(
+        std::uint32_t validLedgerSeq,
         std::lock_guard<std::mutex>&);
 
     // Set storage and file descriptor usage stats

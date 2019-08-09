@@ -55,9 +55,8 @@ Shard::Shard(
 bool
 Shard::open(Scheduler& scheduler, nudb::context& ctx)
 {
+    std::lock_guard<std::mutex> lock(mutex_);
     assert(!backend_);
-    using namespace boost::filesystem;
-    using namespace boost::beast::detail;
 
     Config const& config {app_.config()};
     Section section {config.section(ConfigSection::shardDatabase())};
@@ -108,7 +107,7 @@ Shard::open(Scheduler& scheduler, nudb::context& ctx)
         if (!preexist)
         {
             // New shard, create a control file
-            if (!saveControl())
+            if (!saveControl(lock))
                 return fail({});
         }
         else if (is_regular_file(control_))
@@ -133,17 +132,19 @@ Shard::open(Scheduler& scheduler, nudb::context& ctx)
                     JLOG(j_.warn()) <<
                         "shard " << index_ <<
                         " has a control file for complete shard";
-                    setComplete();
-                    remove_all(control_);
+                    setComplete(lock);
                 }
             }
         }
         else
-            setComplete();
+            setComplete(lock);
 
-        setCache();
-        if (!initSQLite() || !setFileStats())
-            return fail({});
+        if (!complete_)
+        {
+            setCache(lock);
+            if (!initSQLite(lock) ||!setFileStats(lock))
+                return fail({});
+        }
     }
     catch (std::exception const& e)
     {
@@ -157,7 +158,9 @@ Shard::open(Scheduler& scheduler, nudb::context& ctx)
 bool
 Shard::setStored(std::shared_ptr<Ledger const> const& ledger)
 {
-    assert(backend_&& !complete_);
+    std::lock_guard<std::mutex> lock(mutex_);
+    assert(backend_ && !complete_);
+
     if (boost::icl::contains(storedSeqs_, ledger->info().seq))
     {
         JLOG(j_.debug()) <<
@@ -166,27 +169,16 @@ Shard::setStored(std::shared_ptr<Ledger const> const& ledger)
         return false;
     }
 
-    if (!setSQLiteStored(ledger))
+    if (!setSQLiteStored(ledger, lock))
         return false;
 
     // Check if the shard is complete
     if (boost::icl::length(storedSeqs_) >= maxLedgers_ - 1)
-    {
-        setComplete();
-        if (backend_->backed())
-        {
-            if (!removeAll(control_, j_))
-                return false;
-
-            setCache();
-            if (!initSQLite() || !setFileStats())
-                return false;
-        }
-    }
+        setComplete(lock);
     else
     {
         storedSeqs_.insert(ledger->info().seq);
-        if (backend_->backed() && !saveControl())
+        if (backend_->backed() && !saveControl(lock))
             return false;
     }
 
@@ -202,7 +194,9 @@ Shard::setStored(std::shared_ptr<Ledger const> const& ledger)
 boost::optional<std::uint32_t>
 Shard::prepare()
 {
-    assert(backend_);
+    std::lock_guard<std::mutex> lock(mutex_);
+    assert(backend_ && !complete_);
+
     if (storedSeqs_.empty())
          return lastSeq_;
     return prevMissing(storedSeqs_, 1 + lastSeq_, firstSeq_);
@@ -214,9 +208,9 @@ Shard::contains(std::uint32_t seq) const
     assert(backend_);
     if (seq < firstSeq_ || seq > lastSeq_)
         return false;
-    if (complete_)
-        return true;
-    return boost::icl::contains(storedSeqs_, seq);
+
+    std::lock_guard<std::mutex> lock(mutex_);
+    return complete_ || boost::icl::contains(storedSeqs_, seq);
 }
 
 void
@@ -430,9 +424,11 @@ Shard::valFetch(uint256 const& hash)
 {
     assert(backend_);
     std::shared_ptr<NodeObject> nObj;
-    auto fail = [this](std::string const& msg)
+    auto fail = [this, &nObj](std::string const& msg)
     {
         JLOG(j_.error()) << "shard " << index_ << " " << msg;
+        nObj.reset();
+        return nObj;
     };
 
     try
@@ -442,36 +438,50 @@ Shard::valFetch(uint256 const& hash)
         case ok:
             break;
         case notFound:
-        {
-            fail("is missing node object on hash " + to_string(hash));
-            break;
-        }
+            return fail("is missing node object on hash " + to_string(hash));
         case dataCorrupt:
-        {
-            fail("has a corrupt node object on hash " + to_string(hash));
-            break;
-        }
+            return fail("has a corrupt node object on hash " + to_string(hash));
         default:
-            fail("encountered unknown error on hash " + to_string(hash));
+            return fail("encountered unknown error on hash " + to_string(hash));
         }
     }
     catch (std::exception const& e)
     {
-        fail(std::string("exception ") +
+        return fail(std::string("exception ") +
             e.what() + " in function " + __func__);
     }
     return nObj;
 }
 
-void
-Shard::setComplete()
+bool
+Shard::setComplete(std::lock_guard<std::mutex> const& lock)
 {
+    // Remove the control file if one exists
+    try
+    {
+        using namespace boost::filesystem;
+        if (is_regular_file(control_))
+            remove_all(control_);
+
+    }
+    catch (std::exception const& e)
+    {
+        JLOG(j_.error()) <<
+            "shard " << index_ <<
+            " exception " << e.what() <<
+            " in function " << __func__;
+        return false;
+    }
+
     storedSeqs_.clear();
     complete_ = true;
+
+    setCache(lock);
+    return initSQLite(lock) && setFileStats(lock);
 }
 
 void
-Shard::setCache()
+Shard::setCache(std::lock_guard<std::mutex> const&)
 {
     // complete shards use the smallest cache and
     // fastest expiration to reduce memory consumption.
@@ -503,7 +513,7 @@ Shard::setCache()
 }
 
 bool
-Shard::initSQLite()
+Shard::initSQLite(std::lock_guard<std::mutex> const&)
 {
     Config const& config {app_.config()};
     DatabaseCon::Setup setup;
@@ -515,9 +525,8 @@ Shard::initSQLite()
     {
         if (complete_)
         {
-            using namespace boost::filesystem;
-
             // Remove WAL files if they exist
+            using namespace boost::filesystem;
             for (auto const& d : directory_iterator(dir_))
             {
                 if (is_regular_file(d) &&
@@ -601,7 +610,9 @@ Shard::initSQLite()
 }
 
 bool
-Shard::setSQLiteStored(std::shared_ptr<Ledger const> const& ledger)
+Shard::setSQLiteStored(
+    std::shared_ptr<Ledger const> const& ledger,
+    std::lock_guard<std::mutex> const&)
 {
     auto const seq {ledger->info().seq};
     assert(backend_ && !complete_);
@@ -733,7 +744,7 @@ Shard::setSQLiteStored(std::shared_ptr<Ledger const> const& ledger)
 }
 
 bool
-Shard::setFileStats()
+Shard::setFileStats(std::lock_guard<std::mutex> const&)
 {
     fileSz_ = 0;
     fdRequired_ = 0;
@@ -764,7 +775,7 @@ Shard::setFileStats()
 }
 
 bool
-Shard::saveControl()
+Shard::saveControl(std::lock_guard<std::mutex> const&)
 {
     std::ofstream ofs {control_.string(), std::ios::trunc};
     if (!ofs.is_open())
