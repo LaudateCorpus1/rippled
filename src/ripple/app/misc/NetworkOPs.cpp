@@ -2317,19 +2317,12 @@ Json::Value NetworkOPsImp::getServerInfo (bool human, bool admin, bool counters)
         }
         else
         {
-            // Make a local specialization of the TaggedFee class, using
-            // XRPAmount as the "unit" to make some of the math here easier.
-            using XRPDouble = feeunit::TaggedFee<XRPAmount, double>;
-
             l[jss::base_fee_xrp] =
-                static_cast<XRPDouble>(baseFee) /
-                    DROPS_PER_XRP;
-            l[jss::reserve_base_xrp]   =
-                static_cast<XRPDouble>(
-                    lpClosed->fees().accountReserve(0)) / DROPS_PER_XRP;
-            l[jss::reserve_inc_xrp]    =
-                static_cast<XRPDouble>(
-                    lpClosed->fees().increment) / DROPS_PER_XRP;
+                baseFee.decimalXRP();
+            l[jss::reserve_base_xrp] =
+                lpClosed->fees().accountReserve(0).decimalXRP();
+            l[jss::reserve_inc_xrp] =
+                lpClosed->fees().increment.decimalXRP();
 
             auto const nowOffset = app_.timeKeeper().nowOffset();
             if (std::abs (nowOffset.count()) >= 60)

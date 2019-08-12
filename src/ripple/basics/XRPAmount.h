@@ -31,6 +31,10 @@
 
 namespace ripple {
 
+namespace feeunit {
+    struct drop_tag;
+} // feeunit
+
 class XRPAmount
     : private boost::totally_ordered <XRPAmount>
     , private boost::additive <XRPAmount>
@@ -39,7 +43,7 @@ class XRPAmount
     , private boost::unit_steppable <XRPAmount>
 {
 public:
-    using unit_type = XRPAmount;
+    using unit_type = feeunit::drop_tag;
     using value_type = std::int64_t;
 private:
     value_type drops_;
@@ -210,6 +214,10 @@ public:
         return drops_;
     }
 
+    constexpr
+    double
+    decimalXRP () const;
+
     Json::Value
     json () const
     {
@@ -245,6 +253,20 @@ public:
     }
 
 };
+
+/** Number of drops per 1 XRP */
+static
+constexpr
+XRPAmount
+DROPS_PER_XRP{1'000'000};
+
+inline
+constexpr
+double
+XRPAmount::decimalXRP () const
+{
+    return static_cast<double>(drops_) / DROPS_PER_XRP.drops();
+}
 
 // Output XRPAmount as just the drops value.
 template<class Char, class Traits>
@@ -288,8 +310,9 @@ mulRatio (
     }
     if (r > std::numeric_limits<XRPAmount::value_type>::max ())
         Throw<std::overflow_error> ("XRP mulRatio overflow");
-    if (r < std::numeric_limits<XRPAmount::value_type>::min ())
-        Throw<std::overflow_error> ("XRP mulRatio underflow");
+    // TODO: DO WE NEED AN AMENDMENT TO ADD THIS CHECK
+    //if (r < std::numeric_limits<XRPAmount::value_type>::min ())
+    //    Throw<std::overflow_error> ("XRP mulRatio underflow");
     return XRPAmount (r.convert_to<XRPAmount::value_type> ());
 }
 

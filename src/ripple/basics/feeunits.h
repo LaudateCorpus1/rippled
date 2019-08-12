@@ -55,7 +55,7 @@ constexpr bool is_usable_unit_v =
     std::is_same_v<typename T::unit_type, feeunit_tag> ||
     std::is_same_v<typename T::unit_type, feelevel_tag> ||
     std::is_same_v<typename T::unit_type, unitless_tag> ||
-    std::is_same_v<typename T::unit_type, XRPAmount>;
+    std::is_same_v<typename T::unit_type, drop_tag>;
 
 
 template<class UnitTag, class T>

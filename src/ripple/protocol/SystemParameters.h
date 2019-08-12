@@ -39,12 +39,6 @@ systemName ()
 
 /** Configure the native currency. */
 
-/** Number of drops per 1 XRP */
-static
-constexpr
-XRPAmount
-DROPS_PER_XRP{ 1'000'000 };
-
 /** Number of drops in the genesis account. */
 static
 constexpr

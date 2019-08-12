@@ -110,25 +110,44 @@ public:
         }
     }
 
+    void testDecimal ()
+    {
+        // Tautology
+        BEAST_EXPECT(DROPS_PER_XRP.decimalXRP() == 1);
+
+        XRPAmount test{1};
+        BEAST_EXPECT(test.decimalXRP() == 0.000001);
+
+        test = -test;
+        BEAST_EXPECT(test.decimalXRP() == -0.000001);
+
+        test = 100'000'000;
+        BEAST_EXPECT(test.decimalXRP() == 100);
+
+        test = -test;
+        BEAST_EXPECT(test.decimalXRP() == -100);
+    }
+
     void testMulRatio()
     {
         testcase ("mulRatio");
 
         constexpr auto maxUInt32 = std::numeric_limits<std::uint32_t>::max ();
-        constexpr auto maxUInt64 = std::numeric_limits<std::uint64_t>::max ();
+        constexpr auto maxXRP = std::numeric_limits<XRPAmount::value_type>::max ();
+        constexpr auto minXRP = std::numeric_limits<XRPAmount::value_type>::min ();
 
         {
             // multiply by a number that would overflow then divide by the same
             // number, and check we didn't lose any value
-            XRPAmount big (maxUInt64);
+            XRPAmount big (maxXRP);
             BEAST_EXPECT(big == mulRatio (big, maxUInt32, maxUInt32, true));
             // rounding mode shouldn't matter as the result is exact
             BEAST_EXPECT(big == mulRatio (big, maxUInt32, maxUInt32, false));
         }
 
         {
-            // Similar test as above, but for neative values
-            XRPAmount big (maxUInt64);
+            // Similar test as above, but for negative values
+            XRPAmount big (minXRP);
             BEAST_EXPECT(big == mulRatio (big, maxUInt32, maxUInt32, true));
             // rounding mode shouldn't matter as the result is exact
             BEAST_EXPECT(big == mulRatio (big, maxUInt32, maxUInt32, false));
@@ -163,7 +182,7 @@ public:
             }
 
             {
-                XRPAmount big (maxUInt64);
+                XRPAmount big (maxXRP);
                 auto const rup = mulRatio (big, maxUInt32 - 1, maxUInt32, true);
                 auto const rdown = mulRatio (big, maxUInt32 - 1, maxUInt32, false);
                 BEAST_EXPECT(rup.drops () - rdown.drops () == 1);
@@ -185,8 +204,14 @@ public:
 
         {
             // overflow
-            XRPAmount big (maxUInt64);
-            except ([&] {mulRatio (big, 2, 0, true);});
+            XRPAmount big (maxXRP);
+            except ([&] {mulRatio (big, 2, 1, true);});
+        }
+
+        {
+            // underflow
+            XRPAmount bigNegative (minXRP + 10);
+            BEAST_EXPECT(mulRatio(bigNegative, 2, 1, true) == minXRP);
         }
     }
 
@@ -198,6 +223,7 @@ public:
         testBeastZero ();
         testComparisons ();
         testAddSub ();
+        testDecimal ();
         testMulRatio ();
     }
 };

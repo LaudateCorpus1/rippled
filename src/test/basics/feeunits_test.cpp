@@ -39,16 +39,16 @@ public:
             XRPAmount x{ 100 };
             BEAST_EXPECT(x.drops() == 100);
             BEAST_EXPECT((std::is_same_v<decltype(x)::unit_type,
-                XRPAmount>));
+                feeunit::drop_tag>));
             auto y = 4u * x;
             BEAST_EXPECT(y.value() == 400);
             BEAST_EXPECT((std::is_same_v<decltype(y)::unit_type,
-                XRPAmount>));
+                feeunit::drop_tag>));
 
             auto z = 4 * y;
             BEAST_EXPECT(z.value() == 1600);
             BEAST_EXPECT((std::is_same_v<decltype(z)::unit_type,
-                XRPAmount>));
+                feeunit::drop_tag>));
 
             FeeUnit32 f{ 10 };
             FeeUnit32 baseFee{ 100 };
@@ -57,18 +57,18 @@ public:
 
             BEAST_EXPECT(drops.value() == 1000);
             BEAST_EXPECT((std::is_same_v<decltype(drops)::unit_type,
-                XRPAmount>));
+                feeunit::drop_tag>));
             BEAST_EXPECT((std::is_same_v<decltype(drops), XRPAmount>));
         }
         {
             XRPAmount x{ 100 };
             BEAST_EXPECT(x.value() == 100);
             BEAST_EXPECT((std::is_same_v<decltype(x)::unit_type,
-                XRPAmount>));
+                feeunit::drop_tag>));
             auto y = 4u * x;
             BEAST_EXPECT(y.value() == 400);
             BEAST_EXPECT((std::is_same_v<decltype(y)::unit_type,
-                XRPAmount>));
+                feeunit::drop_tag>));
 
             FeeUnit64 f{ 10 };
             FeeUnit64 baseFee{ 100 };
@@ -77,7 +77,7 @@ public:
 
             BEAST_EXPECT(drops.value() == 1000);
             BEAST_EXPECT((std::is_same_v<decltype(drops)::unit_type,
-                XRPAmount>));
+                feeunit::drop_tag>));
             BEAST_EXPECT((std::is_same_v<decltype(drops), XRPAmount>));
         }
         {
@@ -98,7 +98,7 @@ public:
 
             BEAST_EXPECT(drops.value() == 40);
             BEAST_EXPECT((std::is_same_v<decltype(drops)::unit_type,
-                XRPAmount>));
+                feeunit::drop_tag>));
             BEAST_EXPECT((std::is_same_v<decltype(drops), XRPAmount>));
         }
     }
