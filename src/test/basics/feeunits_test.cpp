@@ -101,6 +101,66 @@ public:
                 feeunit::drop_tag>));
             BEAST_EXPECT((std::is_same_v<decltype(drops), XRPAmount>));
         }
+
+        // Json value functionality
+        {
+            FeeUnit32 x{std::numeric_limits<std::uint32_t>::max()};
+            auto y = x.json();
+            BEAST_EXPECT(y.type() == Json::uintValue);
+            BEAST_EXPECT(y == Json::Value{x.fee()});
+        }
+
+        {
+            FeeUnit32 x{std::numeric_limits<std::uint32_t>::min()};
+            auto y = x.json();
+            BEAST_EXPECT(y.type() == Json::uintValue);
+            BEAST_EXPECT(y == Json::Value{x.fee()});
+        }
+
+        {
+            FeeUnit64 x{std::numeric_limits<std::uint64_t>::max()};
+            auto y = x.json();
+            BEAST_EXPECT(y.type() == Json::uintValue);
+            BEAST_EXPECT(y ==
+                Json::Value{std::numeric_limits<std::uint32_t>::max()});
+        }
+
+        {
+            FeeUnit64 x{std::numeric_limits<std::uint64_t>::min()};
+            auto y = x.json();
+            BEAST_EXPECT(y.type() == Json::uintValue);
+            BEAST_EXPECT(y == Json::Value{x.fee()});
+        }
+
+        {
+            FeeLevelDouble x{std::numeric_limits<double>::max()};
+            auto y = x.json();
+            BEAST_EXPECT(y.type() == Json::realValue);
+            BEAST_EXPECT(y == Json::Value{std::numeric_limits<double>::max()});
+        }
+
+        {
+            FeeLevelDouble x{std::numeric_limits<double>::min()};
+            auto y = x.json();
+            BEAST_EXPECT(y.type() == Json::realValue);
+            BEAST_EXPECT(y == Json::Value{std::numeric_limits<double>::min()});
+        }
+
+        {
+            XRPAmount x{std::numeric_limits<std::int64_t>::max()};
+            auto y = x.json();
+            BEAST_EXPECT(y.type() == Json::intValue);
+            BEAST_EXPECT(y ==
+                Json::Value{std::numeric_limits<std::int32_t>::max()});
+        }
+
+        {
+            XRPAmount x{std::numeric_limits<std::int64_t>::min()};
+            auto y = x.json();
+            BEAST_EXPECT(y.type() == Json::intValue);
+            BEAST_EXPECT(y ==
+                Json::Value{std::numeric_limits<std::int32_t>::min()});
+        }
     }
 };
 

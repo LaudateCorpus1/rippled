@@ -143,6 +143,13 @@ public:
             BEAST_EXPECT(big == mulRatio (big, maxUInt32, maxUInt32, true));
             // rounding mode shouldn't matter as the result is exact
             BEAST_EXPECT(big == mulRatio (big, maxUInt32, maxUInt32, false));
+
+            // multiply and divide by values that would overflow if done naively,
+            // and check that it gives the correct answer
+            big -= 0xf; // Subtract a little so it's divisable by 4
+            BEAST_EXPECT(mulRatio(big, 3, 4, false) == (big / 4) * 3);
+            BEAST_EXPECT(mulRatio(big, 3, 4, true) == (big / 4) * 3);
+            BEAST_EXPECT((big * 3) / 4 != (big / 4) * 3);
         }
 
         {
@@ -151,6 +158,12 @@ public:
             BEAST_EXPECT(big == mulRatio (big, maxUInt32, maxUInt32, true));
             // rounding mode shouldn't matter as the result is exact
             BEAST_EXPECT(big == mulRatio (big, maxUInt32, maxUInt32, false));
+
+            // multiply and divide by values that would overflow if done naively,
+            // and check that it gives the correct answer
+            BEAST_EXPECT(mulRatio(big, 3, 4, false) == (big / 4) * 3);
+            BEAST_EXPECT(mulRatio(big, 3, 4, true) == (big / 4) * 3);
+            BEAST_EXPECT((big * 3) / 4 != (big / 4) * 3);
         }
 
         {

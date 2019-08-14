@@ -221,7 +221,9 @@ public:
     Json::Value
     json () const
     {
-        static_assert(std::is_signed_v<value_type>, "Expected XRPAmount to be signed");
+        static_assert(std::is_signed_v<value_type> &&
+            std::is_integral_v<value_type>,
+            "Expected XRPAmount to be a signed integral type");
 
         constexpr auto min = std::numeric_limits<Json::Int>::min();
         constexpr auto max = std::numeric_limits<Json::Int>::max();

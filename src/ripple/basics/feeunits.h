@@ -276,10 +276,19 @@ public:
         return fee_;
     }
 
-    Json::Value
+    template<class T = value_type>
+    std::enable_if_t<is_usable_unit_v<TaggedFee> &&
+        !std::is_integral_v<T>, Json::Value>
     json () const
     {
-        static_assert(is_usable_unit_v<TaggedFee>, "Invalid unit type");
+        return fee_;
+    }
+
+    template<class T = value_type>
+    std::enable_if_t<is_usable_unit_v<TaggedFee> &&
+        std::is_integral_v<T>, Json::Value>
+    json () const
+    {
         using jsontype = std::conditional_t<std::is_signed_v<value_type>,
             Json::Int, Json::UInt>;
 
@@ -292,7 +301,6 @@ public:
             return max;
         return static_cast<jsontype>(fee_);
     }
-
 
     /** Returns the underlying value. Code SHOULD NOT call this
         function unless the type has been abstracted away,
