@@ -129,7 +129,7 @@ public:
             FeeUnit64 x{std::numeric_limits<std::uint64_t>::min()};
             auto y = x.json();
             BEAST_EXPECT(y.type() == Json::uintValue);
-            BEAST_EXPECT(y == Json::Value{x.fee()});
+            BEAST_EXPECT(y == Json::Value{0});
         }
 
         {

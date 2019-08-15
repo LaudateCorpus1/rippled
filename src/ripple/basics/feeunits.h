@@ -39,8 +39,16 @@ namespace ripple {
 
 namespace feeunit {
 
+/** "fee units" calculations are a not-really-unitless value that is used
+    to express the cost of a given transaction vs. a reference transaction.
+    They are primarily used by the Transactor classes. */
 struct feeunit_tag;
+/** "fee levels" are used by the transaction queue to compare the relative
+    cost of transactions that require different levels of effort to process.
+    See also: src/ripple/app/misc/FeeEscalation.md#fee-level */
 struct feelevel_tag;
+/** unitless values are plain scalars wrapped in a TaggedFee. They are
+    used for calculations in this header. */
 struct unitless_tag;
 
 template<class T>
@@ -276,17 +284,23 @@ public:
         return fee_;
     }
 
-    template<class T = value_type>
+    // TODO: Rewrite this to use `if constexpr` once we move to C++17.
+    //
+    // `is_usable_unit_v` is checked to ensure that only values with
+    // known valid type tags can be converted to JSON. At the time
+    // of implementation, that includes all known tags, but more may
+    // be added in the future.
+    template<class transparent = value_type>
     std::enable_if_t<is_usable_unit_v<TaggedFee> &&
-        !std::is_integral_v<T>, Json::Value>
+        !std::is_integral_v<transparent>, Json::Value>
     json () const
     {
         return fee_;
     }
 
-    template<class T = value_type>
+    template<class transparent = value_type>
     std::enable_if_t<is_usable_unit_v<TaggedFee> &&
-        std::is_integral_v<T>, Json::Value>
+        std::is_integral_v<transparent>, Json::Value>
     json () const
     {
         using jsontype = std::conditional_t<std::is_signed_v<value_type>,
