@@ -101,9 +101,9 @@ public:
     struct FeeSettings
     {
         boost::optional<std::uint32_t> loadFee;
-        boost::optional<XRPAmount> baseFee;
-        boost::optional<XRPAmount> reserveBase;
-        boost::optional<XRPAmount> reserveIncrement;
+        boost::optional<XRPAmountU64> baseFee;
+        boost::optional<XRPAmountU32> reserveBase;
+        boost::optional<XRPAmountU32> reserveIncrement;
     };
 
     /** Construct, sign and trust a new STValidation

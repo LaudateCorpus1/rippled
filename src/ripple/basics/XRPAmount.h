@@ -32,19 +32,24 @@
 namespace ripple {
 
 namespace feeunit {
-    struct drop_tag;
+
+/** "drops" are the smallest divisible amount of XRP. This is what most
+    of the code uses. */
+struct drop_tag;
+
 } // feeunit
 
-class XRPAmount
-    : private boost::totally_ordered <XRPAmount>
-    , private boost::additive <XRPAmount>
-    , private boost::dividable <XRPAmount, std::int64_t>
-    , private boost::modable <XRPAmount, std::int64_t>
-    , private boost::unit_steppable <XRPAmount>
+template<class T>
+class XRPAmountBase
+    : private boost::totally_ordered <XRPAmountBase<T>>
+    , private boost::additive <XRPAmountBase<T>>
+    , private boost::dividable <XRPAmountBase<T>, T>
+    , private boost::modable <XRPAmountBase<T>, T>
+    , private boost::unit_steppable <XRPAmountBase<T>>
 {
 public:
     using unit_type = feeunit::drop_tag;
-    using value_type = std::int64_t;
+    using value_type = T;
 private:
     value_type drops_;
 
@@ -57,12 +62,12 @@ protected:
         typename std::enable_if_t<is_compatible_v<Other>>;
 
 public:
-    XRPAmount () = default;
-    constexpr XRPAmount (XRPAmount const& other) = default;
-    constexpr XRPAmount& operator= (XRPAmount const& other) = default;
+    XRPAmountBase () = default;
+    constexpr XRPAmountBase (XRPAmountBase const& other) = default;
+    constexpr XRPAmountBase& operator= (XRPAmountBase const& other) = default;
 
     constexpr
-    XRPAmount (beast::Zero)
+    XRPAmountBase (beast::Zero)
         : drops_ (0)
     {
         static_assert(std::is_convertible_v<value_type, std::uint64_t>,
@@ -70,7 +75,7 @@ public:
     }
 
     constexpr
-    XRPAmount&
+    XRPAmountBase&
     operator= (beast::Zero)
     {
         drops_ = 0;
@@ -78,7 +83,7 @@ public:
     }
 
     constexpr
-    XRPAmount (value_type drops)
+    XRPAmountBase (value_type drops)
         : drops_ (drops)
     {
     }
@@ -86,22 +91,31 @@ public:
     template <class Other,
         class = enable_if_compatible_t <Other>>
     constexpr
-    XRPAmount (Other drops)
+    XRPAmountBase (Other drops)
         : drops_ (static_cast<value_type> (drops))
     {
     }
 
     template <class Other,
         class = enable_if_compatible_t <Other>>
-    XRPAmount&
+    XRPAmountBase&
     operator= (Other drops)
     {
         drops_ = static_cast<value_type> (drops);
         return *this;
     }
 
+    template <class Other,
+        class = enable_if_compatible_t <Other>>
+    explicit
     constexpr
-    XRPAmount
+    XRPAmountBase (XRPAmountBase<Other> drops)
+        : drops_ (static_cast<value_type> (drops.drops()))
+    {
+    }
+
+    constexpr
+    XRPAmountBase
     operator*(value_type const& rhs) const
     {
         return { drops_ * rhs };
@@ -109,8 +123,8 @@ public:
 
     friend
     constexpr
-    XRPAmount
-    operator*(value_type lhs, XRPAmount const& rhs)
+    XRPAmountBase
+    operator*(value_type lhs, XRPAmountBase const& rhs)
     {
         // multiplication is commutative
         return rhs * lhs;
@@ -118,74 +132,90 @@ public:
 
     constexpr
     value_type
-    operator/(XRPAmount const& rhs) const
+    operator/(XRPAmountBase const& rhs) const
     {
         return drops_ / rhs.drops_;
     }
 
-    XRPAmount&
-    operator+= (XRPAmount const& other)
+    XRPAmountBase&
+    operator+= (XRPAmountBase const& other)
     {
         drops_ += other.drops();
         return *this;
     }
 
-    XRPAmount&
-    operator-= (XRPAmount const& other)
+    XRPAmountBase&
+    operator-= (XRPAmountBase const& other)
     {
         drops_ -= other.drops();
         return *this;
     }
 
-    XRPAmount&
+    XRPAmountBase&
     operator++()
     {
         ++drops_;
         return *this;
     }
 
-    XRPAmount&
+    XRPAmountBase&
     operator--()
     {
         --drops_;
         return *this;
     }
 
-    XRPAmount&
+    XRPAmountBase&
     operator*= (value_type const& rhs)
     {
         drops_ *= rhs;
         return *this;
     }
 
-    XRPAmount&
+    XRPAmountBase&
     operator/= (value_type const& rhs)
     {
         drops_ /= rhs;
         return *this;
     }
 
-    XRPAmount&
+    XRPAmountBase&
     operator%= (value_type const& rhs)
     {
         drops_ %= rhs;
         return *this;
     }
 
-    XRPAmount
+    XRPAmountBase
     operator- () const
     {
         return { -drops_ };
     }
 
     bool
-    operator==(XRPAmount const& other) const
+    operator==(XRPAmountBase const& other) const
     {
         return drops_ == other.drops_;
     }
 
+    template <class Other,
+        class = enable_if_compatible_t <Other>>
     bool
-    operator<(XRPAmount const& other) const
+    operator==(XRPAmountBase<Other> const& other) const
+    {
+        return drops_ == other.drops();
+    }
+
+    template <class Other,
+        class = enable_if_compatible_t <Other>>
+    bool
+    operator!=(XRPAmountBase<Other> const& other) const
+    {
+        return !operator==(other);
+    }
+
+    bool
+    operator<(XRPAmountBase const& other) const
     {
         return drops_ < other.drops_;
     }
@@ -248,7 +278,7 @@ public:
 
     friend
     std::istream&
-    operator>> (std::istream& s, XRPAmount& val)
+    operator>> (std::istream& s, XRPAmountBase& val)
     {
         s >> val.drops_;
         return s;
@@ -257,24 +287,32 @@ public:
 };
 
 /** Number of drops per 1 XRP */
-static
+template<class T>
 constexpr
-XRPAmount
-DROPS_PER_XRP{1'000'000};
+XRPAmountBase<T>
+DropsPerXRP{1'000'000};
 
-inline
+template<class T>
 constexpr
 double
-XRPAmount::decimalXRP () const
+XRPAmountBase<T>::decimalXRP () const
 {
-    return static_cast<double>(drops_) / DROPS_PER_XRP.drops();
+    return static_cast<double>(drops_) / DropsPerXRP<T>.drops();
 }
 
+using XRPAmount = XRPAmountBase<std::int64_t>;
+using XRPAmountU32 = XRPAmountBase<std::uint32_t>;
+using XRPAmountU64 = XRPAmountBase<std::uint64_t>;
+
+constexpr
+XRPAmount
+DROPS_PER_XRP{DropsPerXRP<XRPAmount::value_type>};
+
 // Output XRPAmount as just the drops value.
-template<class Char, class Traits>
+template<class Char, class Traits, class T>
 std::basic_ostream<Char, Traits>&
 operator<<(std::basic_ostream<Char, Traits>& os,
-    const XRPAmount& q)
+    const XRPAmountBase<T>& q)
 {
     return os << q.drops();
 }

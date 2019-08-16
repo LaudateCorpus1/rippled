@@ -134,7 +134,7 @@ scaleFeeLoad(FeeUnit64 fee, LoadFeeTrack const& feeTrack,
     if (bUnlimited && (feeFactor > uRemFee) && (feeFactor < (4 * uRemFee)))
         feeFactor = uRemFee;
 
-    auto baseFee = fees.base;
+    XRPAmount baseFee{fees.base};
     // Compute:
     // fee = fee * baseFee * feeFactor / (fees.units * lftNormalFee);
     // without overflow, and as accurately as possible

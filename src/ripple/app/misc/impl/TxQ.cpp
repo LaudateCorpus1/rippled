@@ -1466,8 +1466,6 @@ TxQ::getTxs(ReadView const& view) const
 Json::Value
 TxQ::doRPC(Application& app) const
 {
-    using std::to_string;
-
     auto const view = app.openLedger().current();
     if (!view)
     {

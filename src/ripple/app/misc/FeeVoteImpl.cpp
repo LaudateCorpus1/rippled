@@ -28,16 +28,17 @@ namespace ripple {
 
 namespace detail {
 
+template<class T>
 class VotableInteger
 {
 private:
-    using Integer = XRPAmount;
+    using Integer = XRPAmountBase<T>;
     Integer mCurrent;   // The current setting
     Integer mTarget;    // The setting we want
     std::map <Integer, int> mVoteMap;
 
 public:
-    VotableInteger (Integer current, Integer target)
+    VotableInteger (XRPAmount current, Integer target)
         : mCurrent (current)
         , mTarget (target)
     {
@@ -61,8 +62,9 @@ public:
     getVotes() const;
 };
 
+template<class T>
 auto
-VotableInteger::getVotes() const
+VotableInteger<T>::getVotes() const
     -> Integer
 {
     Integer ourVote = mCurrent;
@@ -152,14 +154,14 @@ FeeVoteImpl::doVoting(
     // LCL must be flag ledger
     assert ((lastClosedLedger->info().seq % 256) == 0);
 
-    detail::VotableInteger baseFeeVote (
+    detail::VotableInteger<std::uint64_t> baseFeeVote (
         lastClosedLedger->fees().base, target_.reference_fee);
 
-    detail::VotableInteger baseReserveVote(
+    detail::VotableInteger<std::uint32_t> baseReserveVote(
         lastClosedLedger->fees().accountReserve(0),
         target_.account_reserve);
 
-    detail::VotableInteger incReserveVote (
+    detail::VotableInteger<std::uint32_t> incReserveVote (
         lastClosedLedger->fees().increment, target_.owner_reserve);
 
     for (auto const& val : set)
@@ -196,9 +198,9 @@ FeeVoteImpl::doVoting(
     }
 
     // choose our positions
-    XRPAmount const baseFee = baseFeeVote.getVotes ();
-    XRPAmount const baseReserve = baseReserveVote.getVotes ();
-    XRPAmount const incReserve = incReserveVote.getVotes ();
+    auto const baseFee = baseFeeVote.getVotes ();
+    auto const baseReserve = baseReserveVote.getVotes ();
+    auto const incReserve = incReserveVote.getVotes ();
     constexpr FeeUnit32 feeUnits = Setup::reference_fee_units;
     auto const seq = lastClosedLedger->info().seq + 1;
 

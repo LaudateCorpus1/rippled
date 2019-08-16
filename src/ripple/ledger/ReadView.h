@@ -48,8 +48,8 @@ struct Fees
 {
     XRPAmount base{ 0 };         // Reference tx cost (drops)
     FeeUnit32 units{ 0 };        // Reference fee units
-    XRPAmount reserve{ 0 };      // Reserve base (drops), 32-bits by protocol
-    XRPAmount increment{ 0 };    // Reserve increment (drops), 32-bits
+    XRPAmount reserve{ 0 };      // Reserve base (drops)
+    XRPAmount increment{ 0 };    // Reserve increment (drops)
 
     explicit Fees() = default;
     Fees (Fees const&) = default;
@@ -63,13 +63,13 @@ struct Fees
     XRPAmount
     accountReserve (std::size_t ownerCount) const
     {
-        return reserve + ownerCount * increment;
+        return { (reserve + ownerCount * increment).drops() };
     }
 
     std::pair<bool, XRPAmount>
     toDrops(FeeUnit64 const& fee) const
     {
-        return mulDiv(base, fee, units);
+        return mulDiv(base.drops(), fee, units);
     }
 };
 
