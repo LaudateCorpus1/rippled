@@ -32,13 +32,13 @@ template<class T>
 class VotableInteger
 {
 private:
-    using Integer = XRPAmountBase<T>;
-    Integer mCurrent;   // The current setting
-    Integer mTarget;    // The setting we want
-    std::map <Integer, int> mVoteMap;
+    using value_type = XRPAmountBase<T>;
+    value_type mCurrent;   // The current setting
+    value_type mTarget;    // The setting we want
+    std::map <value_type, int> mVoteMap;
 
 public:
-    VotableInteger (XRPAmount current, Integer target)
+    VotableInteger (value_type current, value_type target)
         : mCurrent (current)
         , mTarget (target)
     {
@@ -47,7 +47,7 @@ public:
     }
 
     void
-    addVote(Integer vote)
+    addVote(value_type vote)
     {
         ++mVoteMap[vote];
     }
@@ -58,16 +58,16 @@ public:
         addVote (mCurrent);
     }
 
-    Integer
+    value_type
     getVotes() const;
 };
 
 template<class T>
 auto
 VotableInteger<T>::getVotes() const
-    -> Integer
+    -> value_type
 {
-    Integer ourVote = mCurrent;
+    value_type ourVote = mCurrent;
     int weight = 0;
     for (auto const& [key, val] : mVoteMap)
     {
@@ -155,14 +155,17 @@ FeeVoteImpl::doVoting(
     assert ((lastClosedLedger->info().seq % 256) == 0);
 
     detail::VotableInteger<std::uint64_t> baseFeeVote (
-        lastClosedLedger->fees().base, target_.reference_fee);
+        static_cast<XRPAmountU64>(lastClosedLedger->fees().base),
+        target_.reference_fee);
 
     detail::VotableInteger<std::uint32_t> baseReserveVote(
-        lastClosedLedger->fees().accountReserve(0),
+        static_cast<XRPAmountU32>(
+            lastClosedLedger->fees().accountReserve(0)),
         target_.account_reserve);
 
     detail::VotableInteger<std::uint32_t> incReserveVote (
-        lastClosedLedger->fees().increment, target_.owner_reserve);
+        static_cast<XRPAmountU32>(lastClosedLedger->fees().increment),
+        target_.owner_reserve);
 
     for (auto const& val : set)
     {

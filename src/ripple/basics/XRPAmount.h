@@ -21,6 +21,7 @@
 #define RIPPLE_BASICS_XRPAMOUNT_H_INCLUDED
 
 #include <ripple/basics/contract.h>
+#include <ripple/basics/safe_cast.h>
 #include <ripple/beast/cxx17/type_traits.h>
 #include <ripple/beast/utility/Zero.h>
 #include <ripple/json/json_value.h>
@@ -43,6 +44,7 @@ template<class T>
 class XRPAmountBase
     : private boost::totally_ordered <XRPAmountBase<T>>
     , private boost::additive <XRPAmountBase<T>>
+    , private boost::equality_comparable <XRPAmountBase<T>, T>
     , private boost::dividable <XRPAmountBase<T>, T>
     , private boost::modable <XRPAmountBase<T>, T>
     , private boost::unit_steppable <XRPAmountBase<T>>
@@ -70,8 +72,8 @@ public:
     XRPAmountBase (beast::Zero)
         : drops_ (0)
     {
-        static_assert(std::is_convertible_v<value_type, std::uint64_t>,
-            "conversion");
+        static_assert(is_compatible_v<value_type>,
+            "XRPAmountBase value_type does not meet requirements");
     }
 
     constexpr
@@ -88,30 +90,31 @@ public:
     {
     }
 
-    template <class Other,
-        class = enable_if_compatible_t <Other>>
-    constexpr
-    XRPAmountBase (Other drops)
-        : drops_ (static_cast<value_type> (drops))
-    {
-    }
-
-    template <class Other,
-        class = enable_if_compatible_t <Other>>
     XRPAmountBase&
-    operator= (Other drops)
+    operator= (value_type drops)
     {
-        drops_ = static_cast<value_type> (drops);
+        drops_ = drops;
         return *this;
     }
 
+    /** This constructor is intended to only be used by
+        explicit static_cast operations */
     template <class Other,
-        class = enable_if_compatible_t <Other>>
+        class = enable_if_compatible_t <Other> >
     explicit
     constexpr
     XRPAmountBase (XRPAmountBase<Other> drops)
         : drops_ (static_cast<value_type> (drops.drops()))
     {
+        static_assert(!is_safetocasttovalue_v<value_type, Other>,
+            "This is a safe conversion");
+        if ((drops_ > std::numeric_limits<value_type>::max()) ||
+            (!std::numeric_limits<value_type>::is_signed && drops_ < 0) ||
+            (std::numeric_limits<value_type>::is_signed &&
+                drops_ < std::numeric_limits<value_type>::lowest()))
+        {
+            Throw<std::runtime_error>("XRPAmount conversion out of range");
+        }
     }
 
     constexpr
@@ -196,6 +199,12 @@ public:
     operator==(XRPAmountBase const& other) const
     {
         return drops_ == other.drops_;
+    }
+
+    bool
+    operator==(value_type other) const
+    {
+        return drops_ == other;
     }
 
     template <class Other,

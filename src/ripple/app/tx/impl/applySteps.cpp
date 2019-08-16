@@ -171,7 +171,7 @@ invoke_calculateBaseFee(
     case ttFEE:                  return Change::calculateBaseFee(view, tx);
     default:
         assert(false);
-        return 0;
+        return FeeUnit64{0};
     }
 }
 

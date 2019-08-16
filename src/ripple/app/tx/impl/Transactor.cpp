@@ -132,7 +132,7 @@ Transactor::calculateBaseFee (
     // The computation has two parts:
     //  * The base fee, which is the same for most transactions.
     //  * The additional cost of each multisignature on the transaction.
-    FeeUnit64 const baseFee = view.fees().units;
+    FeeUnit64 const baseFee = safe_cast<FeeUnit64>(view.fees().units);
 
     // Each signer adds one more baseFee to the minimum required fee
     // for the transaction.

@@ -21,9 +21,7 @@
 
 #include <ripple/basics/BasicConfig.h>
 #include <ripple/basics/contract.h>
-#include <ripple/basics/safe_cast.h>
 #include <ripple/basics/XRPAmount.h>
-#include <ripple/beast/cxx17/type_traits.h>
 #include <boost/multiprecision/cpp_int.hpp>
 #include <limits>
 #include <utility>
@@ -70,6 +68,7 @@ template<class UnitTag, class T>
 class TaggedFee
     : private boost::totally_ordered <TaggedFee<UnitTag, T>>
     , private boost::additive <TaggedFee<UnitTag, T>>
+    , private boost::equality_comparable<TaggedFee<UnitTag, T>, T>
     , private boost::dividable <TaggedFee<UnitTag, T>, T>
     , private boost::modable <TaggedFee<UnitTag, T>, T>
     , private boost::unit_steppable <TaggedFee<UnitTag, T>>
@@ -84,7 +83,9 @@ private:
 
 protected:
     template<class Other>
-    static constexpr bool is_compatible_v = std::is_integral_v<Other> &&
+    static constexpr bool is_compatible_v =
+        ((std::is_integral_v<Other> && std::is_integral_v<value_type>) ||
+            std::is_floating_point_v<value_type> ) &&
         std::is_convertible_v<Other, value_type>;
 
     template<class OtherFee, class = enable_if_unit_t<OtherFee> >
@@ -104,12 +105,6 @@ public:
     TaggedFee () = default;
     constexpr TaggedFee (TaggedFee const& other) = default;
     constexpr TaggedFee& operator= (TaggedFee const& other) = default;
-
-    // Little trick stolen from boost::units that allows a 0 in the
-    // implicit constructor, but no other value
-    constexpr TaggedFee(unspecified_null_pointer_constant_type) : fee_()
-    {
-    }
 
     constexpr
     explicit
@@ -133,39 +128,43 @@ public:
     {
     }
 
-    template <class Other,
-        class = enable_if_compatible_t <Other>>
+    TaggedFee&
+    operator= (value_type fee)
+    {
+        fee_ = fee;
+        return *this;
+    }
+
+    /** Instances with the same unit, and a type that is
+        "safe" to covert to this one can be converted
+        implicitly */
+    template <class Other, class = std::enable_if_t<
+        is_compatible_v <Other> &&
+        is_safetocasttovalue_v <value_type, Other> >>
     constexpr
+    TaggedFee(TaggedFee<unit_type, Other> const& fee)
+        : TaggedFee (safe_cast<value_type> (fee.fee()))
+    {
+    }
+
+    /** Instances with the same unit, but a type that is
+        not "safe" to covert to this one must be converted
+        explicitly */
+    template <class Other, class = std::enable_if_t<
+        is_compatible_v <Other> &&
+        !is_safetocasttovalue_v <value_type, Other> >>
     explicit
-    TaggedFee (Other fee)
-        : fee_ (static_cast<value_type> (fee))
-    {
-    }
-
-    template <class OtherFee,
-        class = enable_if_compatiblefee_t<OtherFee> >
     constexpr
-    TaggedFee (OtherFee const& fee)
-        : fee_ (static_cast<value_type> (fee.value()))
+    TaggedFee(TaggedFee<unit_type, Other> fee)
+        : fee_ (static_cast<value_type> (fee.fee()))
     {
-    }
-
-    template <class Other,
-        class = enable_if_compatible_t <Other>>
-    TaggedFee&
-    operator= (Other fee)
-    {
-        fee_ = static_cast<value_type> (fee);
-        return *this;
-    }
-
-    template <class OtherFee,
-        class = enable_if_compatiblefee_t <OtherFee>>
-    TaggedFee&
-    operator= (OtherFee const& fee)
-    {
-        fee_ = static_cast<value_type> (fee.value());
-        return *this;
+        if ((fee_ > std::numeric_limits<value_type>::max()) ||
+            (!std::numeric_limits<value_type>::is_signed && fee_ < 0) ||
+            (std::numeric_limits<value_type>::is_signed &&
+                fee_ < std::numeric_limits<value_type>::lowest()))
+        {
+            Throw<std::runtime_error>("Fee conversion out of range");
+        }
     }
 
     constexpr
@@ -233,7 +232,9 @@ public:
         return *this;
     }
 
-    TaggedFee&
+    template<class transparent = value_type>
+    std::enable_if_t<std::is_integral_v<transparent>,
+        TaggedFee&>
     operator%= (value_type const& rhs)
     {
         fee_ %= rhs;
@@ -243,15 +244,37 @@ public:
     TaggedFee
     operator- () const
     {
-        static_assert( std::is_unsigned_v<T>,
+        static_assert( std::is_signed_v<T>,
             "- operator illegal on unsigned fee types");
-        return { -fee_ };
+        return TaggedFee{ -fee_ };
     }
 
     bool
     operator==(TaggedFee const& other) const
     {
         return fee_ == other.fee_;
+    }
+
+    template <class Other,
+        class = enable_if_compatible_t <Other>>
+    bool
+    operator==(TaggedFee<unit_type, Other> const& other) const
+    {
+        return fee_ == other.fee();
+    }
+
+    bool
+    operator==(value_type other) const
+    {
+        return fee_ == other;
+    }
+
+    template <class Other,
+        class = enable_if_compatible_t <Other>>
+    bool
+    operator!=(TaggedFee<unit_type, Other> const& other) const
+    {
+        return !operator==(other);
     }
 
     bool
@@ -282,6 +305,14 @@ public:
     fee () const
     {
         return fee_;
+    }
+
+    template<class Other>
+    constexpr
+    double
+    decimalFromReference (TaggedFee<unit_type, Other> reference) const
+    {
+        return static_cast<double>(fee_) / reference.fee();
     }
 
     // TODO: Rewrite this to use `if constexpr` once we move to C++17.
@@ -420,18 +451,7 @@ template<class Source1, class Source2, class Dest,
 std::pair<bool, Dest>
 mulDivU(Source1 value, Dest mul, Source2 div)
 {
-    // Shortcuts, since these happen a lot in the real world
-    if (value == div)
-        return { true, mul };
-    if (mul.value() == div.value())
-        return { true, Dest{ value.value() } };
-
-    using namespace boost::multiprecision;
-    using desttype = typename Dest::value_type;
-
-    constexpr auto max =
-        std::numeric_limits<desttype>::max();
-
+    // Fees can never be negative in any context.
     if(value.value() < 0 || mul.value() < 0 || div.value() < 0)
     {
         // split the asserts so if one hits, the user can tell which
@@ -439,8 +459,25 @@ mulDivU(Source1 value, Dest mul, Source2 div)
         assert(value.value() >= 0);
         assert(mul.value() >= 0);
         assert(div.value() >= 0);
-        return { false, Dest{ max } };
+        return { false, Dest{ 0 } };
     }
+
+    using desttype = typename Dest::value_type;
+    constexpr auto max =
+        std::numeric_limits<desttype>::max();
+
+    // Shortcuts, since these happen a lot in the real world
+    if (value == div)
+        return { true, mul };
+    if (mul.value() == div.value())
+    {
+        if (value.value() > max)
+            return{ false, Dest{max} };
+        return { true,
+            Dest{ static_cast<desttype>(value.value()) } };
+    }
+
+    using namespace boost::multiprecision;
 
     uint128_t product;
     product = multiply(product,

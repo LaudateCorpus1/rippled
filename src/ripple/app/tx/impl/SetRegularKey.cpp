@@ -41,7 +41,7 @@ SetRegularKey::calculateBaseFee (
             if (sle && (! (sle->getFlags () & lsfPasswordSpent)))
             {
                 // flag is armed and they signed with the right account
-                return 0;
+                return FeeUnit64{0};
             }
         }
     }

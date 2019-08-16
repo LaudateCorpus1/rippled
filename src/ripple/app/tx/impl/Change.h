@@ -51,7 +51,7 @@ public:
         ReadView const& view,
         STTx const& tx)
     {
-        return 0;
+        return FeeUnit64{0};
     }
 
     static

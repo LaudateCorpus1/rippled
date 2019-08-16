@@ -2280,15 +2280,13 @@ Json::Value NetworkOPsImp::getServerInfo (bool human, bool admin, bool counters)
                 (admin ||
                 loadFactorFeeEscalation != loadFactor))
             info[jss::load_factor_fee_escalation] =
-                static_cast<FeeLevelDouble>(
-                    escalationMetrics.openLedgerFeeLevel) /
-                        escalationMetrics.referenceFeeLevel;
+                escalationMetrics.openLedgerFeeLevel.decimalFromReference(
+                        escalationMetrics.referenceFeeLevel);
         if (escalationMetrics.minProcessingFeeLevel !=
                 escalationMetrics.referenceFeeLevel)
             info[jss::load_factor_fee_queue] =
-                static_cast<FeeLevelDouble>(
-                    escalationMetrics.minProcessingFeeLevel) /
-                        escalationMetrics.referenceFeeLevel;
+                escalationMetrics.minProcessingFeeLevel.decimalFromReference(
+                    escalationMetrics.referenceFeeLevel);
     }
 
     bool valid = false;

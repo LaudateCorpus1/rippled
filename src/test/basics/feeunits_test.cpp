@@ -28,13 +28,8 @@ class feeunits_test
     : public beast::unit_test::suite
 {
 private:
-
-public:
-    void run() override
+    void testTypes()
     {
-        BEAST_EXPECT(INITIAL_XRP.drops() == 100'000'000'000'000'000);
-        BEAST_EXPECT(INITIAL_XRP ==
-            XRPAmount{ 100'000'000'000'000'000 });
         {
             XRPAmount x{ 100 };
             BEAST_EXPECT(x.drops() == 100);
@@ -101,7 +96,10 @@ public:
                 feeunit::drop_tag>));
             BEAST_EXPECT((std::is_same_v<decltype(drops), XRPAmount>));
         }
+    }
 
+    void testJson()
+    {
         // Json value functionality
         {
             FeeUnit32 x{std::numeric_limits<std::uint32_t>::max()};
@@ -161,6 +159,198 @@ public:
             BEAST_EXPECT(y ==
                 Json::Value{std::numeric_limits<std::int32_t>::min()});
         }
+    }
+
+    void testFunctions()
+    {
+        // Explicitly test every defined function for the TaggedFee class
+        // since some of them are templated, but not used anywhere else.
+        {
+            auto make = [&](auto x) -> FeeUnit64 {
+                return x; };
+            auto explicitmake = [&](auto x) -> FeeUnit64 {
+                return FeeUnit64{ x };
+            };
+
+            FeeUnit64 defaulted;
+            (void)defaulted;
+            FeeUnit64 test{ 0 };
+            BEAST_EXPECT(test.fee() == 0);
+
+            test = explicitmake(beast::zero);
+            BEAST_EXPECT(test.fee() == 0);
+
+            test = beast::zero;
+            BEAST_EXPECT(test.fee() == 0);
+
+            test = explicitmake(100u);
+            BEAST_EXPECT(test.fee() == 100);
+
+            FeeUnit64 const targetSame{ 200u };
+            FeeUnit32 const targetOther{ 300u };
+            test = make(targetSame);
+            BEAST_EXPECT(test.fee() == 200);
+            BEAST_EXPECT(test == targetSame);
+            BEAST_EXPECT(test < FeeUnit64{ 1000 });
+            BEAST_EXPECT(test > FeeUnit64{ 100 });
+            test = make(targetOther);
+            BEAST_EXPECT(test.fee() == 300);
+            BEAST_EXPECT(test == targetOther);
+
+            test = std::uint64_t(200);
+            BEAST_EXPECT(test.fee() == 200);
+            test = std::uint32_t(300);
+            BEAST_EXPECT(test.fee() == 300);
+
+            test = targetSame;
+            BEAST_EXPECT(test.fee() == 200);
+            test = safe_cast<FeeUnit64>(targetOther);
+            BEAST_EXPECT(test.fee() == 300);
+
+            test = targetSame * 2;
+            BEAST_EXPECT(test.fee() == 400);
+            test = 3 * targetSame;
+            BEAST_EXPECT(test.fee() == 600);
+            test = targetSame / 10;
+            BEAST_EXPECT(test.fee() == 20);
+
+            test += targetSame;
+            BEAST_EXPECT(test.fee() == 220);
+
+            test -= targetSame;
+            BEAST_EXPECT(test.fee() == 20);
+
+            test++;
+            BEAST_EXPECT(test.fee() == 21);
+            ++test;
+            BEAST_EXPECT(test.fee() == 22);
+            test--;
+            BEAST_EXPECT(test.fee() == 21);
+            --test;
+            BEAST_EXPECT(test.fee() == 20);
+
+            test *= 5;
+            BEAST_EXPECT(test.fee() == 100);
+            test /= 2;
+            BEAST_EXPECT(test.fee() == 50);
+            test %= 13;
+            BEAST_EXPECT(test.fee() == 11);
+
+            /*
+            // illegal with unsigned
+            test = -test;
+            BEAST_EXPECT(test.fee() == -11);
+            BEAST_EXPECT(test.signum() == -1);
+            BEAST_EXPECT(to_string(test) == "-11");
+            */
+
+            BEAST_EXPECT(test);
+            test = 0;
+            BEAST_EXPECT(!test);
+            BEAST_EXPECT(test.signum() == 0);
+            test = targetSame;
+            BEAST_EXPECT(test.signum() == 1);
+            BEAST_EXPECT(to_string(test) == "200");
+        }
+        {
+            auto make = [&](auto x) -> FeeLevelDouble {
+                return x; };
+            auto explicitmake = [&](auto x) -> FeeLevelDouble {
+                return FeeLevelDouble{ x };
+            };
+
+            FeeLevelDouble defaulted;
+            (void)defaulted;
+            FeeLevelDouble test{ 0 };
+            BEAST_EXPECT(test.fee() == 0);
+
+            test = explicitmake(beast::zero);
+            BEAST_EXPECT(test.fee() == 0);
+
+            test = beast::zero;
+            BEAST_EXPECT(test.fee() == 0);
+
+            test = explicitmake(100.0);
+            BEAST_EXPECT(test.fee() == 100);
+
+            FeeLevelDouble const targetSame{ 200.0 };
+            FeeLevel64 const targetOther{ 300 };
+            test = make(targetSame);
+            BEAST_EXPECT(test.fee() == 200);
+            BEAST_EXPECT(test == targetSame);
+            BEAST_EXPECT(test < FeeLevelDouble{ 1000.0 });
+            BEAST_EXPECT(test > FeeLevelDouble{ 100.0 });
+            test = explicitmake(targetOther);
+            BEAST_EXPECT(test.fee() == 300);
+            BEAST_EXPECT(test == targetOther);
+
+            test = 200.0;
+            BEAST_EXPECT(test.fee() == 200);
+            test = std::uint64_t(300);
+            BEAST_EXPECT(test.fee() == 300);
+
+            test = targetSame;
+            BEAST_EXPECT(test.fee() == 200);
+            test = static_cast<FeeLevelDouble>(targetOther);
+            BEAST_EXPECT(test.fee() == 300);
+
+            test = targetSame * 2;
+            BEAST_EXPECT(test.fee() == 400);
+            test = 3 * targetSame;
+            BEAST_EXPECT(test.fee() == 600);
+            test = targetSame / 10;
+            BEAST_EXPECT(test.fee() == 20);
+
+            test += targetSame;
+            BEAST_EXPECT(test.fee() == 220);
+
+            test -= targetSame;
+            BEAST_EXPECT(test.fee() == 20);
+
+            test++;
+            BEAST_EXPECT(test.fee() == 21);
+            ++test;
+            BEAST_EXPECT(test.fee() == 22);
+            test--;
+            BEAST_EXPECT(test.fee() == 21);
+            --test;
+            BEAST_EXPECT(test.fee() == 20);
+
+            test *= 5;
+            BEAST_EXPECT(test.fee() == 100);
+            test /= 2;
+            BEAST_EXPECT(test.fee() == 50);
+            /* illegal with floating
+            test %= 13;
+            BEAST_EXPECT(test.fee() == 11);
+            */
+
+            // legal with signed
+            test = -test;
+            BEAST_EXPECT(test.fee() == -50);
+            BEAST_EXPECT(test.signum() == -1);
+            BEAST_EXPECT(to_string(test) == "-50.000000");
+
+            BEAST_EXPECT(test);
+            test = 0;
+            BEAST_EXPECT(!test);
+            BEAST_EXPECT(test.signum() == 0);
+            test = targetSame;
+            BEAST_EXPECT(test.signum() == 1);
+            BEAST_EXPECT(to_string(test) == "200.000000");
+        }
+    }
+
+public:
+    void run() override
+    {
+        BEAST_EXPECT(INITIAL_XRP.drops() == 100'000'000'000'000'000);
+        BEAST_EXPECT(INITIAL_XRP ==
+            XRPAmount{ 100'000'000'000'000'000 });
+
+        testTypes();
+        testJson();
+        testFunctions();
     }
 };
 
