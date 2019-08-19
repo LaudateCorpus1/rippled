@@ -51,9 +51,9 @@ struct unitless_tag;
 
 template<class T>
 using enable_if_unit_t = typename std::enable_if_t<
-    std::is_class<T>::value &&
-    std::is_object<typename T::unit_type>::value &&
-    std::is_object<typename T::value_type>::value
+    std::is_class_v<T> &&
+    std::is_object_v<typename T::unit_type> &&
+    std::is_object_v<typename T::value_type>
 >;
 
 template<class T, class = enable_if_unit_t<T> >
@@ -62,7 +62,6 @@ constexpr bool is_usable_unit_v =
     std::is_same_v<typename T::unit_type, feelevel_tag> ||
     std::is_same_v<typename T::unit_type, unitless_tag> ||
     std::is_same_v<typename T::unit_type, drop_tag>;
-
 
 template<class UnitTag, class T>
 class TaggedFee
@@ -321,30 +320,28 @@ public:
     // known valid type tags can be converted to JSON. At the time
     // of implementation, that includes all known tags, but more may
     // be added in the future.
-    template<class transparent = value_type>
-    std::enable_if_t<is_usable_unit_v<TaggedFee> &&
-        !std::is_integral_v<transparent>, Json::Value>
+    std::enable_if_t<is_usable_unit_v<TaggedFee>,
+        Json::Value>
     json () const
     {
-        return fee_;
-    }
+        if constexpr (std::is_integral_v<value_type>)
+        {
+            using jsontype = std::conditional_t<std::is_signed_v<value_type>,
+                Json::Int, Json::UInt>;
 
-    template<class transparent = value_type>
-    std::enable_if_t<is_usable_unit_v<TaggedFee> &&
-        std::is_integral_v<transparent>, Json::Value>
-    json () const
-    {
-        using jsontype = std::conditional_t<std::is_signed_v<value_type>,
-            Json::Int, Json::UInt>;
+            constexpr auto min = std::numeric_limits<jsontype>::min();
+            constexpr auto max = std::numeric_limits<jsontype>::max();
 
-        constexpr auto min = std::numeric_limits<jsontype>::min();
-        constexpr auto max = std::numeric_limits<jsontype>::max();
-
-        if (fee_ < min)
-            return min;
-        if (fee_ > max)
-            return max;
-        return static_cast<jsontype>(fee_);
+            if (fee_ < min)
+                return min;
+            if (fee_ > max)
+                return max;
+            return static_cast<jsontype>(fee_);
+        }
+        else
+        {
+            return fee_;
+        }
     }
 
     /** Returns the underlying value. Code SHOULD NOT call this

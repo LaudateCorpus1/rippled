@@ -92,20 +92,19 @@ scaleFeeLoad(FeeUnit64 fee, LoadFeeTrack const& feeTrack,
     if (fee == 0)
         return 0;
 
-    auto lowestTerms1 = [](auto& a, auto& b)
-    {
-        if (auto const g = std::gcd(a, b.value()))
-        {
-            a /= g;
-            b /= g;
-        }
-    };
-
     // Normally, types with different units wouldn't be mathematically
     // compatible. This function is an exception.
-    auto lowestTerms2 = [](auto& a, auto& b)
+    auto lowestTerms = [](auto& a, auto& b)
     {
-        if (auto const g = std::gcd(a.value(), b.value()))
+        auto value = [](auto val)
+        {
+            if constexpr(std::is_arithmetic_v<decltype(val)>)
+                return val;
+            else
+                return val.value();
+        };
+
+        if (auto const g = std::gcd(value(a), value(b)))
         {
             a /= g;
             b /= g;
@@ -146,9 +145,9 @@ scaleFeeLoad(FeeUnit64 fee, LoadFeeTrack const& feeTrack,
         * safe_cast<std::uint64_t>(feeTrack.getLoadBase());
     // Reduce fee * baseFee * feeFactor / (fees.units * lftNormalFee)
     // to lowest terms.
-    lowestTerms2(fee, den);
-    lowestTerms2(baseFee, den);
-    lowestTerms1(feeFactor, den);
+    lowestTerms(fee, den);
+    lowestTerms(baseFee, den);
+    lowestTerms(feeFactor, den);
 
     // fee and baseFee are 64 bit, feeFactor is 32 bit
     // Order fee and baseFee largest first
