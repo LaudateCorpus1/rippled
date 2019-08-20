@@ -20,7 +20,6 @@
 #define BASICS_FEES_H_INCLUDED
 
 #include <ripple/basics/BasicConfig.h>
-#include <ripple/basics/contract.h>
 #include <ripple/basics/XRPAmount.h>
 #include <boost/multiprecision/cpp_int.hpp>
 #include <limits>
@@ -56,6 +55,13 @@ using enable_if_unit_t = typename std::enable_if_t<
     std::is_object_v<typename T::value_type>
 >;
 
+/** `is_usable_unit_v` is checked to ensure that only values with
+    known valid type tags can be used (sometimes transparently) in
+    non-fee contexts. At the time of implementation, this includes
+    all known tags, but more may be added in the future, and they
+    should not be added automatically unless determined to be
+    appropriate.
+*/
 template<class T, class = enable_if_unit_t<T> >
 constexpr bool is_usable_unit_v =
     std::is_same_v<typename T::unit_type, feeunit_tag> ||
@@ -316,8 +322,6 @@ public:
         }
     }
 
-    // TODO: Rewrite this to use `if constexpr` once we move to C++17.
-    //
     // `is_usable_unit_v` is checked to ensure that only values with
     // known valid type tags can be converted to JSON. At the time
     // of implementation, that includes all known tags, but more may

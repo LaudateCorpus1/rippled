@@ -29,16 +29,16 @@ namespace ripple {
 namespace detail {
 
 template<class T>
-class VotableInteger
+class VotableValue
 {
 private:
-    using value_type = XRPAmountBase<T>;
-    value_type mCurrent;   // The current setting
-    value_type mTarget;    // The setting we want
+    using value_type = T;
+    value_type const mCurrent;   // The current setting
+    value_type const mTarget;    // The setting we want
     std::map <value_type, int> mVoteMap;
 
 public:
-    VotableInteger (value_type current, value_type target)
+    VotableValue (value_type current, value_type target)
         : mCurrent (current)
         , mTarget (target)
     {
@@ -64,7 +64,7 @@ public:
 
 template<class T>
 auto
-VotableInteger<T>::getVotes() const
+VotableValue<T>::getVotes() const
     -> value_type
 {
     value_type ourVote = mCurrent;
@@ -154,15 +154,15 @@ FeeVoteImpl::doVoting(
     // LCL must be flag ledger
     assert ((lastClosedLedger->info().seq % 256) == 0);
 
-    detail::VotableInteger<std::uint64_t> baseFeeVote (
+    detail::VotableValue<XRPAmountU64> baseFeeVote (
         lastClosedLedger->fees().base.as<XRPAmountU64>(),
         target_.reference_fee);
 
-    detail::VotableInteger<std::uint32_t> baseReserveVote(
+    detail::VotableValue<XRPAmountU32> baseReserveVote(
         lastClosedLedger->fees().accountReserve(0).as<XRPAmountU32>(),
         target_.account_reserve);
 
-    detail::VotableInteger<std::uint32_t> incReserveVote (
+    detail::VotableValue<XRPAmountU32> incReserveVote (
         lastClosedLedger->fees().increment.as<XRPAmountU32>(),
         target_.owner_reserve);
 
