@@ -97,24 +97,15 @@ public:
         return *this;
     }
 
-    /** This constructor is intended to only be used by
-        explicit static_cast operations */
-    template <class Other,
-        class = enable_if_compatible_t <Other> >
-    explicit
+    /** Instances with a type that is "safe" to covert
+        to this one can be converted implicitly */
+    template <class Other, class = std::enable_if_t<
+        is_compatible_v <Other> &&
+        is_safetocasttovalue_v <value_type, Other> >>
     constexpr
-    XRPAmountBase (XRPAmountBase<Other> drops)
-        : drops_ (static_cast<value_type> (drops.drops()))
+    XRPAmountBase(XRPAmountBase<Other> const& xrp)
+        : XRPAmountBase (safe_cast<value_type> (xrp.drops()))
     {
-        static_assert(!is_safetocasttovalue_v<value_type, Other>,
-            "This is a safe conversion");
-        if ((drops_ > std::numeric_limits<value_type>::max()) ||
-            (!std::numeric_limits<value_type>::is_signed && drops_ < 0) ||
-            (std::numeric_limits<value_type>::is_signed &&
-                drops_ < std::numeric_limits<value_type>::lowest()))
-        {
-            Throw<std::runtime_error>("XRPAmount conversion out of range");
-        }
     }
 
     constexpr
@@ -192,6 +183,8 @@ public:
     XRPAmountBase
     operator- () const
     {
+        static_assert( std::is_signed_v<T>,
+            "- operator illegal on unsigned XRPAmount types");
         return { -drops_ };
     }
 
@@ -256,6 +249,31 @@ public:
     constexpr
     double
     decimalXRP () const;
+
+    template <class Dest,
+        class = std::enable_if_t<
+            std::is_same_v<typename Dest::unit_type, unit_type> &&
+            is_compatible_v <typename Dest::value_type> > >
+    Dest
+    as() const
+    {
+        using desttype = typename Dest::value_type;
+        if constexpr (is_safetocasttovalue_v <desttype, value_type>)
+        {
+            return { safe_cast<desttype>(drops_) };
+        }
+        else
+        {
+            if ((drops_ > std::numeric_limits<desttype>::max()) ||
+                (!std::numeric_limits<desttype>::is_signed && drops_ < 0) ||
+                (std::numeric_limits<desttype>::is_signed &&
+                    drops_ < std::numeric_limits<desttype>::lowest()))
+            {
+                Throw<std::runtime_error>("XRPAmount conversion out of range");
+            }
+            return { static_cast<desttype>(drops_) };
+        }
+    }
 
     Json::Value
     json () const

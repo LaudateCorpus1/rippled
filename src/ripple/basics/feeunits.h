@@ -83,8 +83,7 @@ private:
 protected:
     template<class Other>
     static constexpr bool is_compatible_v =
-        ((std::is_integral_v<Other> && std::is_integral_v<value_type>) ||
-            std::is_floating_point_v<value_type> ) &&
+        std::is_arithmetic_v<Other> && std::is_arithmetic_v<value_type> &&
         std::is_convertible_v<Other, value_type>;
 
     template<class OtherFee, class = enable_if_unit_t<OtherFee> >
@@ -144,26 +143,6 @@ public:
     TaggedFee(TaggedFee<unit_type, Other> const& fee)
         : TaggedFee (safe_cast<value_type> (fee.fee()))
     {
-    }
-
-    /** Instances with the same unit, but a type that is
-        not "safe" to covert to this one must be converted
-        explicitly */
-    template <class Other, class = std::enable_if_t<
-        is_compatible_v <Other> &&
-        !is_safetocasttovalue_v <value_type, Other> >>
-    explicit
-    constexpr
-    TaggedFee(TaggedFee<unit_type, Other> fee)
-        : fee_ (static_cast<value_type> (fee.fee()))
-    {
-        if ((fee_ > std::numeric_limits<value_type>::max()) ||
-            (!std::numeric_limits<value_type>::is_signed && fee_ < 0) ||
-            (std::numeric_limits<value_type>::is_signed &&
-                fee_ < std::numeric_limits<value_type>::lowest()))
-        {
-            Throw<std::runtime_error>("Fee conversion out of range");
-        }
     }
 
     constexpr
@@ -312,6 +291,29 @@ public:
     decimalFromReference (TaggedFee<unit_type, Other> reference) const
     {
         return static_cast<double>(fee_) / reference.fee();
+    }
+
+    template <class Dest,
+        class = enable_if_compatiblefee_t<Dest> >
+    Dest
+    as() const
+    {
+        using desttype = typename Dest::value_type;
+        if constexpr (is_safetocasttovalue_v <desttype, value_type>)
+        {
+            return Dest{ safe_cast<desttype>(fee_) };
+        }
+        else
+        {
+            if ((fee_ > std::numeric_limits<desttype>::max()) ||
+                (!std::numeric_limits<desttype>::is_signed && fee_ < 0) ||
+                (std::numeric_limits<desttype>::is_signed &&
+                    fee_ < std::numeric_limits<desttype>::lowest()))
+            {
+                Throw<std::runtime_error>("Fee conversion out of range");
+            }
+            return Dest{ static_cast<desttype>(fee_) };
+        }
     }
 
     // TODO: Rewrite this to use `if constexpr` once we move to C++17.

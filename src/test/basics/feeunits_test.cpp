@@ -204,8 +204,11 @@ private:
 
             test = targetSame;
             BEAST_EXPECT(test.fee() == 200);
-            test = safe_cast<FeeUnit64>(targetOther);
+            test = targetOther.as<FeeUnit64>();
             BEAST_EXPECT(test.fee() == 300);
+            BEAST_EXPECT(test == targetOther);
+            auto testOther = test.as<FeeUnit32>();
+            BEAST_EXPECT(testOther.fee() == 300);
 
             test = targetSame * 2;
             BEAST_EXPECT(test.fee() == 400);
@@ -280,9 +283,11 @@ private:
             BEAST_EXPECT(test == targetSame);
             BEAST_EXPECT(test < FeeLevelDouble{ 1000.0 });
             BEAST_EXPECT(test > FeeLevelDouble{ 100.0 });
-            test = explicitmake(targetOther);
+            test = targetOther.as<FeeLevelDouble>();
             BEAST_EXPECT(test.fee() == 300);
             BEAST_EXPECT(test == targetOther);
+            auto testOther = test.as<FeeLevel64>();
+            BEAST_EXPECT(testOther.fee() == 300);
 
             test = 200.0;
             BEAST_EXPECT(test.fee() == 200);
@@ -291,8 +296,6 @@ private:
 
             test = targetSame;
             BEAST_EXPECT(test.fee() == 200);
-            test = static_cast<FeeLevelDouble>(targetOther);
-            BEAST_EXPECT(test.fee() == 300);
 
             test = targetSame * 2;
             BEAST_EXPECT(test.fee() == 400);

@@ -155,16 +155,15 @@ FeeVoteImpl::doVoting(
     assert ((lastClosedLedger->info().seq % 256) == 0);
 
     detail::VotableInteger<std::uint64_t> baseFeeVote (
-        static_cast<XRPAmountU64>(lastClosedLedger->fees().base),
+        lastClosedLedger->fees().base.as<XRPAmountU64>(),
         target_.reference_fee);
 
     detail::VotableInteger<std::uint32_t> baseReserveVote(
-        static_cast<XRPAmountU32>(
-            lastClosedLedger->fees().accountReserve(0)),
+        lastClosedLedger->fees().accountReserve(0).as<XRPAmountU32>(),
         target_.account_reserve);
 
     detail::VotableInteger<std::uint32_t> incReserveVote (
-        static_cast<XRPAmountU32>(lastClosedLedger->fees().increment),
+        lastClosedLedger->fees().increment.as<XRPAmountU32>(),
         target_.owner_reserve);
 
     for (auto const& val : set)

@@ -128,6 +128,98 @@ public:
         BEAST_EXPECT(test.decimalXRP() == -100);
     }
 
+    void testFunctions()
+    {
+        // Explicitly test every defined function for the TaggedFee class
+        // since some of them are templated, but not used anywhere else.
+        auto make = [&](auto x) -> XRPAmount {
+            return x; };
+
+        XRPAmount defaulted;
+        (void)defaulted;
+        XRPAmount test{ 0 };
+        BEAST_EXPECT(test.drops() == 0);
+
+        test = make(beast::zero);
+        BEAST_EXPECT(test.drops() == 0);
+
+        test = beast::zero;
+        BEAST_EXPECT(test.drops() == 0);
+
+        test = make(100);
+        BEAST_EXPECT(test.drops() == 100);
+
+        test = make(100u);
+        BEAST_EXPECT(test.drops() == 100);
+
+        XRPAmount const targetSame{ 200u };
+        XRPAmountU32 const targetOther{ 300u };
+        test = make(targetSame);
+        BEAST_EXPECT(test.drops() == 200);
+        BEAST_EXPECT(test == targetSame);
+        BEAST_EXPECT(test < XRPAmount{ 1000 });
+        BEAST_EXPECT(test > XRPAmount{ 100 });
+        test = targetOther.as<XRPAmount>();
+        BEAST_EXPECT(test.drops() == 300);
+        BEAST_EXPECT(test == targetOther);
+
+        test = std::int64_t(200);
+        BEAST_EXPECT(test.drops() == 200);
+        test = std::uint32_t(300);
+        BEAST_EXPECT(test.drops() == 300);
+
+        test = targetSame;
+        BEAST_EXPECT(test.drops() == 200);
+        test = targetOther.as<XRPAmount>();
+        BEAST_EXPECT(test.drops() == 300);
+        BEAST_EXPECT(test == targetOther);
+        auto testOther = test.as<XRPAmountU32>();
+        BEAST_EXPECT(testOther.drops() == 300);
+
+        test = targetSame * 2;
+        BEAST_EXPECT(test.drops() == 400);
+        test = 3 * targetSame;
+        BEAST_EXPECT(test.drops() == 600);
+        test = targetSame / 10;
+        BEAST_EXPECT(test.drops() == 20);
+
+        test += targetSame;
+        BEAST_EXPECT(test.drops() == 220);
+
+        test -= targetSame;
+        BEAST_EXPECT(test.drops() == 20);
+
+        test++;
+        BEAST_EXPECT(test.drops() == 21);
+        ++test;
+        BEAST_EXPECT(test.drops() == 22);
+        test--;
+        BEAST_EXPECT(test.drops() == 21);
+        --test;
+        BEAST_EXPECT(test.drops() == 20);
+
+        test *= 5;
+        BEAST_EXPECT(test.drops() == 100);
+        test /= 2;
+        BEAST_EXPECT(test.drops() == 50);
+        test %= 13;
+        BEAST_EXPECT(test.drops() == 11);
+
+        // legal with signed
+        test = -test;
+        BEAST_EXPECT(test.drops() == -11);
+        BEAST_EXPECT(test.signum() == -1);
+        BEAST_EXPECT(to_string(test) == "-11");
+
+        BEAST_EXPECT(test);
+        test = 0;
+        BEAST_EXPECT(!test);
+        BEAST_EXPECT(test.signum() == 0);
+        test = targetSame;
+        BEAST_EXPECT(test.signum() == 1);
+        BEAST_EXPECT(to_string(test) == "200");
+    }
+
     void testMulRatio()
     {
         testcase ("mulRatio");
@@ -237,6 +329,7 @@ public:
         testComparisons ();
         testAddSub ();
         testDecimal ();
+        testFunctions ();
         testMulRatio ();
     }
 };
