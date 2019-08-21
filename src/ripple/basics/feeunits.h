@@ -19,7 +19,6 @@
 #ifndef BASICS_FEES_H_INCLUDED
 #define BASICS_FEES_H_INCLUDED
 
-#include <ripple/basics/BasicConfig.h>
 #include <ripple/basics/XRPAmount.h>
 #include <boost/multiprecision/cpp_int.hpp>
 #include <limits>

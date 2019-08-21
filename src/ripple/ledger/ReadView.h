@@ -63,7 +63,7 @@ struct Fees
     XRPAmount
     accountReserve (std::size_t ownerCount) const
     {
-        return { (reserve + ownerCount * increment).drops() };
+        return reserve + ownerCount * increment;
     }
 
     std::pair<bool, XRPAmount>
