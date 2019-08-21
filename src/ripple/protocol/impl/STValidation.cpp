@@ -56,13 +56,40 @@ STValidation::STValidation(
         setFieldU32(sfLoadFee, *fees.loadFee);
 
     if (fees.baseFee)
-        setFieldU64(sfBaseFee, *fees.baseFee);
+    {
+        if (auto const v = fees.baseFee->dropsAs<std::uint64_t>())
+        {
+            setFieldU64(sfBaseFee, *v);
+        }
+        else
+        {
+            Throw<std::runtime_error>("XRPAmount conversion out of range");
+        }
+    }
 
     if (fees.reserveBase)
-        setFieldU32(sfReserveBase, *fees.reserveBase);
+    {
+        if (auto const v = fees.reserveBase->dropsAs<std::uint32_t>())
+        {
+            setFieldU32(sfReserveBase, *v);
+        }
+        else
+        {
+            Throw<std::runtime_error>("XRPAmount conversion out of range");
+        }
+    }
 
     if (fees.reserveIncrement)
-        setFieldU32(sfReserveIncrement, *fees.reserveIncrement);
+    {
+        if (auto const v = fees.reserveIncrement->dropsAs<std::uint32_t>())
+        {
+            setFieldU32(sfReserveIncrement, *v);
+        }
+        else
+        {
+            Throw<std::runtime_error>("XRPAmount conversion out of range");
+        }
+    }
 
     if (!amendments.empty())
         setFieldV256(sfAmendments, STVector256(sfAmendments, amendments));

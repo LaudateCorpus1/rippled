@@ -603,19 +603,9 @@ void STObject::setFieldU32 (SField const& field, std::uint32_t v)
     setFieldUsingSetValue <STUInt32> (field, v);
 }
 
-void STObject::setFieldU32 (SField const& field, XRPAmountU32 v)
-{
-    setFieldUsingSetValue <STUInt32> (field, v.drops());
-}
-
 void STObject::setFieldU64 (SField const& field, std::uint64_t v)
 {
     setFieldUsingSetValue <STUInt64> (field, v);
-}
-
-void STObject::setFieldU64 (SField const& field, XRPAmountU64 v)
-{
-    setFieldUsingSetValue <STUInt64> (field, v.drops());
 }
 
 void STObject::setFieldH128 (SField const& field, uint128 const& v)

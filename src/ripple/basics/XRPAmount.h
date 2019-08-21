@@ -25,8 +25,11 @@
 #include <ripple/beast/cxx17/type_traits.h>
 #include <ripple/beast/utility/Zero.h>
 #include <ripple/json/json_value.h>
+
 #include <boost/operators.hpp>
+#include <boost/optional.hpp>
 #include <boost/multiprecision/cpp_int.hpp>
+
 #include <cstdint>
 #include <string>
 
@@ -40,44 +43,33 @@ struct drop_tag;
 
 } // feeunit
 
-template<class T>
-class XRPAmountBase
-    : private boost::totally_ordered <XRPAmountBase<T>>
-    , private boost::additive <XRPAmountBase<T>>
-    , private boost::equality_comparable <XRPAmountBase<T>, T>
-    , private boost::dividable <XRPAmountBase<T>, T>
-    , private boost::modable <XRPAmountBase<T>, T>
-    , private boost::unit_steppable <XRPAmountBase<T>>
+class XRPAmount
+    : private boost::totally_ordered <XRPAmount>
+    , private boost::additive <XRPAmount>
+    , private boost::equality_comparable <XRPAmount, std::int64_t>
+    , private boost::dividable <XRPAmount, std::int64_t>
+    , private boost::modable <XRPAmount, std::int64_t>
+    , private boost::unit_steppable <XRPAmount>
 {
 public:
     using unit_type = feeunit::drop_tag;
-    using value_type = T;
+    using value_type = std::int64_t;
 private:
     value_type drops_;
 
-protected:
-    template<class Other>
-    static constexpr bool is_compatible_v = std::is_integral_v<Other>;
-
-    template<class Other>
-    using enable_if_compatible_t =
-        typename std::enable_if_t<is_compatible_v<Other>>;
-
 public:
-    XRPAmountBase () = default;
-    constexpr XRPAmountBase (XRPAmountBase const& other) = default;
-    constexpr XRPAmountBase& operator= (XRPAmountBase const& other) = default;
+    XRPAmount () = default;
+    constexpr XRPAmount (XRPAmount const& other) = default;
+    constexpr XRPAmount& operator= (XRPAmount const& other) = default;
 
     constexpr
-    XRPAmountBase (beast::Zero)
+    XRPAmount (beast::Zero)
         : drops_ (0)
     {
-        static_assert(is_compatible_v<value_type>,
-            "XRPAmountBase value_type does not meet requirements");
     }
 
     constexpr
-    XRPAmountBase&
+    XRPAmount&
     operator= (beast::Zero)
     {
         drops_ = 0;
@@ -85,31 +77,20 @@ public:
     }
 
     constexpr
-    XRPAmountBase (value_type drops)
+    XRPAmount (value_type drops)
         : drops_ (drops)
     {
     }
 
-    XRPAmountBase&
+    XRPAmount&
     operator= (value_type drops)
     {
         drops_ = drops;
         return *this;
     }
 
-    /** Instances with a type that is "safe" to covert
-        to this one can be converted implicitly */
-    template <class Other, class = std::enable_if_t<
-        is_compatible_v <Other> &&
-        is_safetocasttovalue_v <value_type, Other> >>
     constexpr
-    XRPAmountBase(XRPAmountBase<Other> const& xrp)
-        : XRPAmountBase (safe_cast<value_type> (xrp.drops()))
-    {
-    }
-
-    constexpr
-    XRPAmountBase
+    XRPAmount
     operator*(value_type const& rhs) const
     {
         return { drops_ * rhs };
@@ -117,8 +98,8 @@ public:
 
     friend
     constexpr
-    XRPAmountBase
-    operator*(value_type lhs, XRPAmountBase const& rhs)
+    XRPAmount
+    operator*(value_type lhs, XRPAmount const& rhs)
     {
         // multiplication is commutative
         return rhs * lhs;
@@ -126,70 +107,68 @@ public:
 
     constexpr
     value_type
-    operator/(XRPAmountBase const& rhs) const
+    operator/(XRPAmount const& rhs) const
     {
         return drops_ / rhs.drops_;
     }
 
-    XRPAmountBase&
-    operator+= (XRPAmountBase const& other)
+    XRPAmount&
+    operator+= (XRPAmount const& other)
     {
         drops_ += other.drops();
         return *this;
     }
 
-    XRPAmountBase&
-    operator-= (XRPAmountBase const& other)
+    XRPAmount&
+    operator-= (XRPAmount const& other)
     {
         drops_ -= other.drops();
         return *this;
     }
 
-    XRPAmountBase&
+    XRPAmount&
     operator++()
     {
         ++drops_;
         return *this;
     }
 
-    XRPAmountBase&
+    XRPAmount&
     operator--()
     {
         --drops_;
         return *this;
     }
 
-    XRPAmountBase&
+    XRPAmount&
     operator*= (value_type const& rhs)
     {
         drops_ *= rhs;
         return *this;
     }
 
-    XRPAmountBase&
+    XRPAmount&
     operator/= (value_type const& rhs)
     {
         drops_ /= rhs;
         return *this;
     }
 
-    XRPAmountBase&
+    XRPAmount&
     operator%= (value_type const& rhs)
     {
         drops_ %= rhs;
         return *this;
     }
 
-    XRPAmountBase
+    XRPAmount
     operator- () const
     {
-        static_assert( std::is_signed_v<T>,
-            "- operator illegal on unsigned XRPAmount types");
         return { -drops_ };
     }
 
     bool
-    operator==(XRPAmountBase const& other) const
+    operator==(XRPAmount const& other) const
     {
         return drops_ == other.drops_;
     }
@@ -200,24 +179,8 @@ public:
         return drops_ == other;
     }
 
-    template <class Other,
-        class = enable_if_compatible_t <Other>>
     bool
-    operator==(XRPAmountBase<Other> const& other) const
-    {
-        return drops_ == other.drops();
-    }
-
-    template <class Other,
-        class = enable_if_compatible_t <Other>>
-    bool
-    operator!=(XRPAmountBase<Other> const& other) const
-    {
-        return !operator==(other);
-    }
-
-    bool
-    operator<(XRPAmountBase const& other) const
+    operator<(XRPAmount const& other) const
     {
         return drops_ < other.drops_;
     }
@@ -250,33 +213,22 @@ public:
     double
     decimalXRP () const;
 
-    template <class Dest,
-        class = std::enable_if_t<
-            std::is_same_v<typename Dest::unit_type, unit_type> &&
-            is_compatible_v <typename Dest::value_type> > >
-    Dest
-    as() const
+    template <class Dest>
+    boost::optional<Dest>
+    dropsAs() const
     {
-        using desttype = typename Dest::value_type;
-        if constexpr (is_safetocasttovalue_v <desttype, value_type>)
+        if ((drops_ > std::numeric_limits<Dest>::max()) ||
+            (!std::numeric_limits<Dest>::is_signed && drops_ < 0) ||
+            (std::numeric_limits<Dest>::is_signed &&
+             drops_ < std::numeric_limits<Dest>::lowest()))
         {
-            return { safe_cast<desttype>(drops_) };
+            return boost::none;
         }
-        else
-        {
-            if ((drops_ > std::numeric_limits<desttype>::max()) ||
-                (!std::numeric_limits<desttype>::is_signed && drops_ < 0) ||
-                (std::numeric_limits<desttype>::is_signed &&
-                    drops_ < std::numeric_limits<desttype>::lowest()))
-            {
-                Throw<std::runtime_error>("XRPAmount conversion out of range");
-            }
-            return { static_cast<desttype>(drops_) };
-        }
+        return static_cast<Dest>(drops_);
     }
 
     Json::Value
-    json () const
+    json() const
     {
         static_assert(std::is_signed_v<value_type> &&
             std::is_integral_v<value_type>,
@@ -305,7 +257,7 @@ public:
 
     friend
     std::istream&
-    operator>> (std::istream& s, XRPAmountBase& val)
+    operator>> (std::istream& s, XRPAmount& val)
     {
         s >> val.drops_;
         return s;
@@ -314,32 +266,22 @@ public:
 };
 
 /** Number of drops per 1 XRP */
-template<class T>
-constexpr
-XRPAmountBase<T>
-DropsPerXRP{1'000'000};
-
-template<class T>
-constexpr
-double
-XRPAmountBase<T>::decimalXRP () const
-{
-    return static_cast<double>(drops_) / DropsPerXRP<T>.drops();
-}
-
-using XRPAmount = XRPAmountBase<std::int64_t>;
-using XRPAmountU32 = XRPAmountBase<std::uint32_t>;
-using XRPAmountU64 = XRPAmountBase<std::uint64_t>;
-
 constexpr
 XRPAmount
-DROPS_PER_XRP{DropsPerXRP<XRPAmount::value_type>};
+DROPS_PER_XRP{1'000'000};
+
+constexpr
+double
+XRPAmount::decimalXRP () const
+{
+    return static_cast<double>(drops_) / DROPS_PER_XRP.drops();
+}
 
 // Output XRPAmount as just the drops value.
-template<class Char, class Traits, class T>
+template<class Char, class Traits>
 std::basic_ostream<Char, Traits>&
 operator<<(std::basic_ostream<Char, Traits>& os,
-    const XRPAmountBase<T>& q)
+    const XRPAmount& q)
 {
     return os << q.drops();
 }

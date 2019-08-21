@@ -120,8 +120,7 @@ public:
 
     // Legacy support for new-style amounts
     STAmount (IOUAmount const& amount, Issue const& issue);
-    template<class T>
-    STAmount (XRPAmountBase<T> const& amount)
+    STAmount (XRPAmount const& amount)
         : mOffset (0)
         , mIsNative (true)
         , mIsNegative (amount < beast::zero)

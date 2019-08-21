@@ -487,9 +487,7 @@ public:
     void setFieldU8 (SField const& field, unsigned char);
     void setFieldU16 (SField const& field, std::uint16_t);
     void setFieldU32 (SField const& field, std::uint32_t);
-    void setFieldU32 (SField const& field, XRPAmountU32);
     void setFieldU64 (SField const& field, std::uint64_t);
-    void setFieldU64 (SField const& field, XRPAmountU64);
     void setFieldH128 (SField const& field, uint128 const&);
     void setFieldH256 (SField const& field, uint256 const& );
     void setFieldVL (SField const& field, Blob const&);
