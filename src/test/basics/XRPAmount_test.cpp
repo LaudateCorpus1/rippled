@@ -130,9 +130,6 @@ public:
 
     void testFunctions()
     {
-#if 0
-        // TBD - rewrite this if we keep the non-template XRP class
-
         // Explicitly test every defined function for the TaggedFee class
         // since some of them are templated, but not used anywhere else.
         auto make = [&](auto x) -> XRPAmount {
@@ -156,15 +153,11 @@ public:
         BEAST_EXPECT(test.drops() == 100);
 
         XRPAmount const targetSame{ 200u };
-        XRPAmountU32 const targetOther{ 300u };
         test = make(targetSame);
         BEAST_EXPECT(test.drops() == 200);
         BEAST_EXPECT(test == targetSame);
         BEAST_EXPECT(test < XRPAmount{ 1000 });
         BEAST_EXPECT(test > XRPAmount{ 100 });
-        test = targetOther.as<XRPAmount>();
-        BEAST_EXPECT(test.drops() == 300);
-        BEAST_EXPECT(test == targetOther);
 
         test = std::int64_t(200);
         BEAST_EXPECT(test.drops() == 200);
@@ -173,11 +166,15 @@ public:
 
         test = targetSame;
         BEAST_EXPECT(test.drops() == 200);
-        test = targetOther.as<XRPAmount>();
-        BEAST_EXPECT(test.drops() == 300);
-        BEAST_EXPECT(test == targetOther);
-        auto testOther = test.as<XRPAmountU32>();
-        BEAST_EXPECT(testOther.drops() == 300);
+        auto testOther = test.dropsAs<std::uint32_t>();
+        BEAST_EXPECT(testOther);
+        BEAST_EXPECT(*testOther == 200);
+        test = std::numeric_limits<std::uint64_t>::max();
+        testOther = test.dropsAs<std::uint32_t>();
+        BEAST_EXPECT(!testOther);
+        test = -1;
+        testOther = test.dropsAs<std::uint32_t>();
+        BEAST_EXPECT(!testOther);
 
         test = targetSame * 2;
         BEAST_EXPECT(test.drops() == 400);
@@ -221,7 +218,6 @@ public:
         test = targetSame;
         BEAST_EXPECT(test.signum() == 1);
         BEAST_EXPECT(to_string(test) == "200");
-#endif
     }
 
     void testMulRatio()
