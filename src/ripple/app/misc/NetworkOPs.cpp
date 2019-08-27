@@ -1658,7 +1658,7 @@ void NetworkOPsImp::pubServer ()
         jvObj [jss::server_status] = strOperatingMode ();
         jvObj [jss::load_base] = f.loadBaseServer;
         jvObj [jss::load_factor_server] = f.loadFactorServer;
-        jvObj [jss::base_fee] = f.baseFee.json();
+        jvObj [jss::base_fee] = f.baseFee.jsonClipped();
 
         if(f.em)
         {
@@ -1669,11 +1669,11 @@ void NetworkOPsImp::pubServer ()
 
             jvObj [jss::load_factor]   = trunc32(loadFactor);
             jvObj [jss::load_factor_fee_escalation] =
-                f.em->openLedgerFeeLevel.json();
+                f.em->openLedgerFeeLevel.jsonClipped();
             jvObj [jss::load_factor_fee_queue] =
-                f.em->minProcessingFeeLevel.json();
+                f.em->minProcessingFeeLevel.jsonClipped();
             jvObj [jss::load_factor_fee_reference] =
-                f.em->referenceFeeLevel.json();
+                f.em->referenceFeeLevel.jsonClipped();
 
         }
         else
@@ -2246,11 +2246,11 @@ Json::Value NetworkOPsImp::getServerInfo (bool human, bool admin, bool counters)
             that high.
         */
         info[jss::load_factor_fee_escalation] =
-            escalationMetrics.openLedgerFeeLevel.json();
+            escalationMetrics.openLedgerFeeLevel.jsonClipped();
         info[jss::load_factor_fee_queue] =
-            escalationMetrics.minProcessingFeeLevel.json();
+            escalationMetrics.minProcessingFeeLevel.jsonClipped();
         info[jss::load_factor_fee_reference] =
-            escalationMetrics.referenceFeeLevel.json();
+            escalationMetrics.referenceFeeLevel.jsonClipped();
     }
     else
     {
@@ -2306,10 +2306,10 @@ Json::Value NetworkOPsImp::getServerInfo (bool human, bool admin, bool counters)
 
         if (!human)
         {
-            l[jss::base_fee] = baseFee.json();
-            l[jss::reserve_base] = lpClosed->fees().accountReserve(0).json();
+            l[jss::base_fee] = baseFee.jsonClipped();
+            l[jss::reserve_base] = lpClosed->fees().accountReserve(0).jsonClipped();
             l[jss::reserve_inc] =
-                    lpClosed->fees().increment.json();
+                    lpClosed->fees().increment.jsonClipped();
             l[jss::close_time] = Json::Value::UInt (
                 lpClosed->info().closeTime.time_since_epoch().count());
         }
@@ -2438,11 +2438,11 @@ void NetworkOPsImp::pubLedger (
             jvObj[jss::ledger_time]
                     = Json::Value::UInt (lpAccepted->info().closeTime.time_since_epoch().count());
 
-            jvObj[jss::fee_ref] = lpAccepted->fees().units.json();
-            jvObj[jss::fee_base] = lpAccepted->fees().base.json();
+            jvObj[jss::fee_ref] = lpAccepted->fees().units.jsonClipped();
+            jvObj[jss::fee_base] = lpAccepted->fees().base.jsonClipped();
             jvObj[jss::reserve_base] =
-                lpAccepted->fees().accountReserve(0).json();
-            jvObj[jss::reserve_inc] = lpAccepted->fees().increment.json();
+                lpAccepted->fees().accountReserve(0).jsonClipped();
+            jvObj[jss::reserve_inc] = lpAccepted->fees().increment.jsonClipped();
 
             jvObj[jss::txn_count] = Json::UInt (alpAccepted->getTxnCount ());
 
@@ -2810,11 +2810,11 @@ bool NetworkOPsImp::subLedger (InfoSub::ref isrListener, Json::Value& jvResult)
         jvResult[jss::ledger_hash]     = to_string (lpClosed->info().hash);
         jvResult[jss::ledger_time] = Json::Value::UInt(
             lpClosed->info().closeTime.time_since_epoch().count());
-        jvResult[jss::fee_ref] = lpClosed->fees().units.json();
-        jvResult[jss::fee_base]        = lpClosed->fees().base.json();
+        jvResult[jss::fee_ref] = lpClosed->fees().units.jsonClipped();
+        jvResult[jss::fee_base]        = lpClosed->fees().base.jsonClipped();
         jvResult[jss::reserve_base]    =
-            lpClosed->fees().accountReserve(0).json();
-        jvResult[jss::reserve_inc]     = lpClosed->fees().increment.json();
+            lpClosed->fees().accountReserve(0).jsonClipped();
+        jvResult[jss::reserve_inc]     = lpClosed->fees().increment.jsonClipped();
     }
 
     if ((mMode >= omSYNCING) && !isNeedNetworkLedger ())

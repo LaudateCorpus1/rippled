@@ -2379,6 +2379,7 @@ else ()
     src/test/app/DepositAuth_test.cpp
     src/test/app/Discrepancy_test.cpp
     src/test/app/Escrow_test.cpp
+    src/test/app/FeeVote_test.cpp
     src/test/app/Flow_test.cpp
     src/test/app/Freeze_test.cpp
     src/test/app/HashRouter_test.cpp

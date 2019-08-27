@@ -746,7 +746,7 @@ Json::Value checkFee (
         return RPC::make_error (rpcHIGH_FEE, ss.str());
     }
 
-    tx [jss::Fee] = fee.json();
+    tx [jss::Fee] = fee.jsonClipped();
     return Json::Value();
 }
 

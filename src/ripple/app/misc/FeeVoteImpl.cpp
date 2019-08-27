@@ -170,7 +170,14 @@ FeeVoteImpl::doVoting(
         {
             if (val->isFieldPresent (sfBaseFee))
             {
-                baseFeeVote.addVote (val->getFieldU64 (sfBaseFee));
+                auto const vote = val->getFieldU64 (sfBaseFee);
+                if (isLegalAmount(vote))
+                    baseFeeVote.addVote (vote);
+                else
+                    // Invalid amounts will be treated as if they're
+                    // not provided. Don't throw because this value is
+                    // provided by an external entity.
+                    baseFeeVote.noVote();
             }
             else
             {
@@ -219,10 +226,22 @@ FeeVoteImpl::doVoting(
             {
                 obj[sfAccount] = AccountID();
                 obj[sfLedgerSequence] = seq;
-                obj[sfBaseFee] = baseFee;
-                obj[sfReserveBase] = baseReserve;
-                obj[sfReserveIncrement] = incReserve;
-                obj[sfReferenceFeeUnits] = feeUnits;
+                // These throws are likely to terminate the app if any fire.
+                // They should not be possible to hit, though, because the voting
+                // process (FeeVoteImpl) ignores any out of range values.
+                if(auto const v = baseFee.dropsAs<std::uint64_t>())
+                    obj[sfBaseFee] = *v;
+                else
+                    Throw<std::runtime_error>("XRPAmount conversion out of range");
+                if(auto const v = baseReserve.dropsAs<std::uint32_t>())
+                    obj[sfReserveBase] = *v;
+                else
+                    Throw<std::runtime_error>("XRPAmount conversion out of range");
+                if(auto const v = incReserve.dropsAs<std::uint32_t>())
+                    obj[sfReserveIncrement] = *v;
+                else
+                    Throw<std::runtime_error>("XRPAmount conversion out of range");
+                obj[sfReferenceFeeUnits] = feeUnits.fee();
             });
 
         uint256 txID = feeTx.getTransactionID ();
@@ -249,9 +268,19 @@ FeeVote::Setup
 setup_FeeVote (Section const& section)
 {
     FeeVote::Setup setup;
-    set (setup.reference_fee, "reference_fee", section);
-    set (setup.account_reserve, "account_reserve", section);
-    set (setup.owner_reserve, "owner_reserve", section);
+    {
+        std::uint64_t temp;
+        if (set(temp, "reference_fee", section) &&
+            isLegalAmount(temp))
+            setup.reference_fee = temp;
+    }
+    {
+        std::uint32_t temp;
+        if (set(temp, "account_reserve", section))
+            setup.account_reserve = temp;
+        if (set(temp, "owner_reserve", section))
+            setup.owner_reserve = temp;
+    }
     return setup;
 }
 

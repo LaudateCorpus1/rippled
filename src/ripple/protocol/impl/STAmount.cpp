@@ -274,6 +274,19 @@ STAmount::STAmount (IOUAmount const& amount, Issue const& issue)
     canonicalize ();
 }
 
+STAmount::STAmount (XRPAmount const& amount)
+    : mOffset (0)
+    , mIsNative (true)
+    , mIsNegative (amount < beast::zero)
+{
+    if (mIsNegative)
+        mValue = unsafe_cast<std::uint64_t> (-amount.drops ());
+    else
+        mValue = unsafe_cast<std::uint64_t> (amount.drops ());
+
+    canonicalize ();
+}
+
 std::unique_ptr<STAmount>
 STAmount::construct (SerialIter& sit, SField const& name)
 {

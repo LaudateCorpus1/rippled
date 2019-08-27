@@ -483,7 +483,7 @@ public:
             Json::Value jv;
             jv[jss::tx_json][jss::Account]         = alice.human();
             jv[jss::tx_json][jss::TransactionType] = jss::AccountSet;
-            jv[jss::tx_json][jss::Fee]             = (8 * baseFee).json();
+            jv[jss::tx_json][jss::Fee]             = (8 * baseFee).jsonClipped();
             jv[jss::tx_json][jss::Sequence]        = env.seq(alice);
             jv[jss::tx_json][jss::SigningPubKey]   = "";
             return jv;
@@ -1219,7 +1219,7 @@ public:
         jvSig1[jss::tx_json][jss::Account]         = alice.human();
         jvSig1[jss::tx_json][jss::Amount]          = 10000000;
         jvSig1[jss::tx_json][jss::Destination]     = env.master.human();
-        jvSig1[jss::tx_json][jss::Fee]             = (3 * baseFee).json();
+        jvSig1[jss::tx_json][jss::Fee]             = (3 * baseFee).jsonClipped();
         jvSig1[jss::tx_json][jss::Sequence]        = env.seq(alice);
         jvSig1[jss::tx_json][jss::TransactionType] = jss::Payment;
 

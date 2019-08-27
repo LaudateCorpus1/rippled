@@ -55,40 +55,31 @@ STValidation::STValidation(
     if (fees.loadFee)
         setFieldU32(sfLoadFee, *fees.loadFee);
 
+    // These throws are likely to terminate the app if any fire.
+    // They should not be possible to hit, though, because the voting
+    // process (FeeVoteImpl) ignores any out of range values.
     if (fees.baseFee)
     {
         if (auto const v = fees.baseFee->dropsAs<std::uint64_t>())
-        {
             setFieldU64(sfBaseFee, *v);
-        }
         else
-        {
             Throw<std::runtime_error>("XRPAmount conversion out of range");
-        }
     }
 
     if (fees.reserveBase)
     {
         if (auto const v = fees.reserveBase->dropsAs<std::uint32_t>())
-        {
             setFieldU32(sfReserveBase, *v);
-        }
         else
-        {
             Throw<std::runtime_error>("XRPAmount conversion out of range");
-        }
     }
 
     if (fees.reserveIncrement)
     {
         if (auto const v = fees.reserveIncrement->dropsAs<std::uint32_t>())
-        {
             setFieldU32(sfReserveIncrement, *v);
-        }
         else
-        {
             Throw<std::runtime_error>("XRPAmount conversion out of range");
-        }
     }
 
     if (!amendments.empty())

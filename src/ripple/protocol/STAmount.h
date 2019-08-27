@@ -120,18 +120,7 @@ public:
 
     // Legacy support for new-style amounts
     STAmount (IOUAmount const& amount, Issue const& issue);
-    STAmount (XRPAmount const& amount)
-        : mOffset (0)
-        , mIsNative (true)
-        , mIsNegative (amount < beast::zero)
-    {
-        if (mIsNegative)
-            mValue = unsafe_cast<std::uint64_t> (-amount.drops ());
-        else
-            mValue = unsafe_cast<std::uint64_t> (amount.drops ());
-
-        canonicalize ();
-    }
+    STAmount (XRPAmount const& amount);
 
     STBase*
     copy (std::size_t n, void* buf) const override

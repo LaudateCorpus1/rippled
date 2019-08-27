@@ -39,12 +39,13 @@ namespace feeunit {
 
 /** "drops" are the smallest divisible amount of XRP. This is what most
     of the code uses. */
-struct drop_tag;
+struct dropTag;
 
 } // feeunit
 
 class XRPAmount
     : private boost::totally_ordered <XRPAmount>
+    , private boost::less_than_comparable <XRPAmount, std::uint64_t>
     , private boost::additive <XRPAmount>
     , private boost::equality_comparable <XRPAmount, std::int64_t>
     , private boost::dividable <XRPAmount, std::int64_t>
@@ -52,7 +53,7 @@ class XRPAmount
     , private boost::unit_steppable <XRPAmount>
 {
 public:
-    using unit_type = feeunit::drop_tag;
+    using unit_type = feeunit::dropTag;
     using value_type = std::int64_t;
 private:
     value_type drops_;
@@ -185,6 +186,18 @@ public:
         return drops_ < other.drops_;
     }
 
+    bool
+    operator<(std::uint64_t other) const
+    {
+        return drops_ < other;
+    }
+
+    bool
+    operator>(std::uint64_t other) const
+    {
+        return drops_ > other;
+    }
+
     /** Returns true if the amount is not zero */
     explicit
     constexpr
@@ -228,7 +241,7 @@ public:
     }
 
     Json::Value
-    json() const
+    jsonClipped() const
     {
         static_assert(std::is_signed_v<value_type> &&
             std::is_integral_v<value_type>,
@@ -319,9 +332,6 @@ mulRatio (
     }
     if (r > std::numeric_limits<XRPAmount::value_type>::max ())
         Throw<std::overflow_error> ("XRP mulRatio overflow");
-    // TODO: DO WE NEED AN AMENDMENT TO ADD THIS CHECK
-    //if (r < std::numeric_limits<XRPAmount::value_type>::min ())
-    //    Throw<std::overflow_error> ("XRP mulRatio underflow");
     return XRPAmount (r.convert_to<XRPAmount::value_type> ());
 }
 

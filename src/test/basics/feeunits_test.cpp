@@ -34,16 +34,16 @@ private:
             XRPAmount x{ 100 };
             BEAST_EXPECT(x.drops() == 100);
             BEAST_EXPECT((std::is_same_v<decltype(x)::unit_type,
-                feeunit::drop_tag>));
+                feeunit::dropTag>));
             auto y = 4u * x;
             BEAST_EXPECT(y.value() == 400);
             BEAST_EXPECT((std::is_same_v<decltype(y)::unit_type,
-                feeunit::drop_tag>));
+                feeunit::dropTag>));
 
             auto z = 4 * y;
             BEAST_EXPECT(z.value() == 1600);
             BEAST_EXPECT((std::is_same_v<decltype(z)::unit_type,
-                feeunit::drop_tag>));
+                feeunit::dropTag>));
 
             FeeUnit32 f{ 10 };
             FeeUnit32 baseFee{ 100 };
@@ -52,18 +52,18 @@ private:
 
             BEAST_EXPECT(drops.value() == 1000);
             BEAST_EXPECT((std::is_same_v<decltype(drops)::unit_type,
-                feeunit::drop_tag>));
+                feeunit::dropTag>));
             BEAST_EXPECT((std::is_same_v<decltype(drops), XRPAmount>));
         }
         {
             XRPAmount x{ 100 };
             BEAST_EXPECT(x.value() == 100);
             BEAST_EXPECT((std::is_same_v<decltype(x)::unit_type,
-                feeunit::drop_tag>));
+                feeunit::dropTag>));
             auto y = 4u * x;
             BEAST_EXPECT(y.value() == 400);
             BEAST_EXPECT((std::is_same_v<decltype(y)::unit_type,
-                feeunit::drop_tag>));
+                feeunit::dropTag>));
 
             FeeUnit64 f{ 10 };
             FeeUnit64 baseFee{ 100 };
@@ -72,19 +72,19 @@ private:
 
             BEAST_EXPECT(drops.value() == 1000);
             BEAST_EXPECT((std::is_same_v<decltype(drops)::unit_type,
-                feeunit::drop_tag>));
+                feeunit::dropTag>));
             BEAST_EXPECT((std::is_same_v<decltype(drops), XRPAmount>));
         }
         {
             FeeLevel64 x{ 1024 };
             BEAST_EXPECT(x.value() == 1024);
             BEAST_EXPECT((std::is_same_v<decltype(x)::unit_type,
-                feeunit::feelevel_tag>));
+                feeunit::feelevelTag>));
             std::uint64_t m = 4;
             auto y = m * x;
             BEAST_EXPECT(y.value() == 4096);
             BEAST_EXPECT((std::is_same_v<decltype(y)::unit_type,
-                feeunit::feelevel_tag>));
+                feeunit::feelevelTag>));
 
             XRPAmount basefee{ 10 };
             FeeLevel64 referencefee{ 256 };
@@ -93,7 +93,7 @@ private:
 
             BEAST_EXPECT(drops.value() == 40);
             BEAST_EXPECT((std::is_same_v<decltype(drops)::unit_type,
-                feeunit::drop_tag>));
+                feeunit::dropTag>));
             BEAST_EXPECT((std::is_same_v<decltype(drops), XRPAmount>));
         }
     }
@@ -103,21 +103,21 @@ private:
         // Json value functionality
         {
             FeeUnit32 x{std::numeric_limits<std::uint32_t>::max()};
-            auto y = x.json();
+            auto y = x.jsonClipped();
             BEAST_EXPECT(y.type() == Json::uintValue);
             BEAST_EXPECT(y == Json::Value{x.fee()});
         }
 
         {
             FeeUnit32 x{std::numeric_limits<std::uint32_t>::min()};
-            auto y = x.json();
+            auto y = x.jsonClipped();
             BEAST_EXPECT(y.type() == Json::uintValue);
             BEAST_EXPECT(y == Json::Value{x.fee()});
         }
 
         {
             FeeUnit64 x{std::numeric_limits<std::uint64_t>::max()};
-            auto y = x.json();
+            auto y = x.jsonClipped();
             BEAST_EXPECT(y.type() == Json::uintValue);
             BEAST_EXPECT(y ==
                 Json::Value{std::numeric_limits<std::uint32_t>::max()});
@@ -125,28 +125,28 @@ private:
 
         {
             FeeUnit64 x{std::numeric_limits<std::uint64_t>::min()};
-            auto y = x.json();
+            auto y = x.jsonClipped();
             BEAST_EXPECT(y.type() == Json::uintValue);
             BEAST_EXPECT(y == Json::Value{0});
         }
 
         {
             FeeLevelDouble x{std::numeric_limits<double>::max()};
-            auto y = x.json();
+            auto y = x.jsonClipped();
             BEAST_EXPECT(y.type() == Json::realValue);
             BEAST_EXPECT(y == Json::Value{std::numeric_limits<double>::max()});
         }
 
         {
             FeeLevelDouble x{std::numeric_limits<double>::min()};
-            auto y = x.json();
+            auto y = x.jsonClipped();
             BEAST_EXPECT(y.type() == Json::realValue);
             BEAST_EXPECT(y == Json::Value{std::numeric_limits<double>::min()});
         }
 
         {
             XRPAmount x{std::numeric_limits<std::int64_t>::max()};
-            auto y = x.json();
+            auto y = x.jsonClipped();
             BEAST_EXPECT(y.type() == Json::intValue);
             BEAST_EXPECT(y ==
                 Json::Value{std::numeric_limits<std::int32_t>::max()});
@@ -154,7 +154,7 @@ private:
 
         {
             XRPAmount x{std::numeric_limits<std::int64_t>::min()};
-            auto y = x.json();
+            auto y = x.jsonClipped();
             BEAST_EXPECT(y.type() == Json::intValue);
             BEAST_EXPECT(y ==
                 Json::Value{std::numeric_limits<std::int32_t>::min()});
@@ -204,11 +204,9 @@ private:
 
             test = targetSame;
             BEAST_EXPECT(test.fee() == 200);
-            test = targetOther.as<FeeUnit64>();
+            test = targetOther.fee();
             BEAST_EXPECT(test.fee() == 300);
             BEAST_EXPECT(test == targetOther);
-            auto testOther = test.as<FeeUnit32>();
-            BEAST_EXPECT(testOther.fee() == 300);
 
             test = targetSame * 2;
             BEAST_EXPECT(test.fee() == 400);
@@ -283,11 +281,9 @@ private:
             BEAST_EXPECT(test == targetSame);
             BEAST_EXPECT(test < FeeLevelDouble{ 1000.0 });
             BEAST_EXPECT(test > FeeLevelDouble{ 100.0 });
-            test = targetOther.as<FeeLevelDouble>();
+            test = targetOther.fee();
             BEAST_EXPECT(test.fee() == 300);
             BEAST_EXPECT(test == targetOther);
-            auto testOther = test.as<FeeLevel64>();
-            BEAST_EXPECT(testOther.fee() == 300);
 
             test = 200.0;
             BEAST_EXPECT(test.fee() == 200);

@@ -38,14 +38,14 @@ namespace feeunit {
 /** "fee units" calculations are a not-really-unitless value that is used
     to express the cost of a given transaction vs. a reference transaction.
     They are primarily used by the Transactor classes. */
-struct feeunit_tag;
+struct feeunitTag;
 /** "fee levels" are used by the transaction queue to compare the relative
     cost of transactions that require different levels of effort to process.
     See also: src/ripple/app/misc/FeeEscalation.md#fee-level */
-struct feelevel_tag;
+struct feelevelTag;
 /** unitless values are plain scalars wrapped in a TaggedFee. They are
     used for calculations in this header. */
-struct unitless_tag;
+struct unitlessTag;
 
 template<class T>
 using enable_if_unit_t = typename std::enable_if_t<
@@ -63,10 +63,10 @@ using enable_if_unit_t = typename std::enable_if_t<
 */
 template<class T, class = enable_if_unit_t<T> >
 constexpr bool is_usable_unit_v =
-    std::is_same_v<typename T::unit_type, feeunit_tag> ||
-    std::is_same_v<typename T::unit_type, feelevel_tag> ||
-    std::is_same_v<typename T::unit_type, unitless_tag> ||
-    std::is_same_v<typename T::unit_type, drop_tag>;
+    std::is_same_v<typename T::unit_type, feeunitTag> ||
+    std::is_same_v<typename T::unit_type, feelevelTag> ||
+    std::is_same_v<typename T::unit_type, unitlessTag> ||
+    std::is_same_v<typename T::unit_type, dropTag>;
 
 template<class UnitTag, class T>
 class TaggedFee
@@ -82,8 +82,6 @@ public:
     using value_type = T;
 private:
     value_type fee_;
-
-    typedef void (TaggedFee::*unspecified_null_pointer_constant_type)(int*******);
 
 protected:
     template<class Other>
@@ -298,36 +296,13 @@ public:
         return static_cast<double>(fee_) / reference.fee();
     }
 
-    template <class Dest,
-        class = enable_if_compatiblefee_t<Dest> >
-    Dest
-    as() const
-    {
-        using desttype = typename Dest::value_type;
-        if constexpr (is_safetocasttovalue_v <desttype, value_type>)
-        {
-            return Dest{ safe_cast<desttype>(fee_) };
-        }
-        else
-        {
-            if ((fee_ > std::numeric_limits<desttype>::max()) ||
-                (!std::numeric_limits<desttype>::is_signed && fee_ < 0) ||
-                (std::numeric_limits<desttype>::is_signed &&
-                    fee_ < std::numeric_limits<desttype>::lowest()))
-            {
-                Throw<std::runtime_error>("Fee conversion out of range");
-            }
-            return Dest{ static_cast<desttype>(fee_) };
-        }
-    }
-
     // `is_usable_unit_v` is checked to ensure that only values with
     // known valid type tags can be converted to JSON. At the time
     // of implementation, that includes all known tags, but more may
     // be added in the future.
     std::enable_if_t<is_usable_unit_v<TaggedFee>,
         Json::Value>
-    json () const
+    jsonClipped() const
     {
         if constexpr (std::is_integral_v<value_type>)
         {
@@ -442,10 +417,10 @@ using enable_muldiv_commute_t =
     typename std::enable_if_t< can_muldiv_commute_v<Source1, Source2, Dest> >;
 
 template<class T>
-TaggedFee<unitless_tag, T>
+TaggedFee<unitlessTag, T>
 scalar(T value)
 {
-    return TaggedFee<unitless_tag, T>{ value };
+    return TaggedFee<unitlessTag, T>{ value };
 }
 
 template<class Source1, class Source2, class Dest,
@@ -497,12 +472,12 @@ mulDivU(Source1 value, Dest mul, Source2 div)
 } // feeunit
 
 template<class T>
-using FeeUnit = feeunit::TaggedFee<feeunit::feeunit_tag, T>;
+using FeeUnit = feeunit::TaggedFee<feeunit::feeunitTag, T>;
 using FeeUnit32 = FeeUnit<std::uint32_t>;
 using FeeUnit64 = FeeUnit<std::uint64_t>;
 
 template<class T>
-using FeeLevel = feeunit::TaggedFee<feeunit::feelevel_tag, T>;
+using FeeLevel = feeunit::TaggedFee<feeunit::feelevelTag, T>;
 using FeeLevel64 = FeeLevel<std::uint64_t>;
 using FeeLevelDouble = FeeLevel<double>;
 

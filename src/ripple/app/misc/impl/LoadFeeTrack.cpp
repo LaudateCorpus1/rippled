@@ -111,20 +111,6 @@ scaleFeeLoad(FeeUnit64 fee, LoadFeeTrack const& feeTrack,
         }
     };
 
-    // Normally, these types wouldn't be swappable. This function is an
-    // exception
-    auto maybe_swap = [](auto& lhs, auto& rhs)
-    {
-        if (lhs.value() < rhs.value())
-        {
-            auto tmp = lhs.value();
-            lhs = rhs.value();
-            rhs = tmp;
-        }
-        // double check
-        assert(lhs.value() >= rhs.value());
-    };
-
     // Collect the fee rates
     auto [feeFactor, uRemFee] = feeTrack.getScalingFactors();
 
@@ -151,7 +137,17 @@ scaleFeeLoad(FeeUnit64 fee, LoadFeeTrack const& feeTrack,
 
     // fee and baseFee are 64 bit, feeFactor is 32 bit
     // Order fee and baseFee largest first
-    maybe_swap(fee, baseFee);
+    // Normally, these types wouldn't be comparable or swappable.
+    // This function is an exception.
+    if (fee.value() < baseFee.value())
+    {
+        auto tmp = fee.value();
+        fee = baseFee.value();
+        baseFee = tmp;
+    }
+    // double check
+    assert(fee.value() >= baseFee.value());
+
     // If baseFee * feeFactor overflows, the final result will overflow
     constexpr XRPAmount max =
         std::numeric_limits<XRPAmount::value_type>::max();

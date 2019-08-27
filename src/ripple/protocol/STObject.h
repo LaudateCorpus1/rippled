@@ -86,13 +86,6 @@ private:
                 ValueProxy&>
         operator= (U&& u);
 
-        template <class Fee>
-        std::enable_if_t<
-            feeunit::is_usable_unit_v<Fee> &&
-            std::is_assignable_v<T, typename Fee::value_type>,
-                ValueProxy&>
-        operator= (Fee const& u);
-
         operator value_type() const;
 
     private:
@@ -220,13 +213,6 @@ private:
             std::is_assignable_v<T, U>,
                 OptionalProxy&>
         operator= (U&& u);
-
-        template <class Fee>
-        std::enable_if_t<
-            feeunit::is_usable_unit_v<Fee> &&
-            std::is_assignable_v<T, typename Fee::value_type>,
-                OptionalProxy&>
-        operator= (Fee const& u);
 
     private:
         friend class STObject;
@@ -750,18 +736,6 @@ STObject::ValueProxy<T>::operator= (U&& u)
 }
 
 template <class T>
-template <class Fee>
-std::enable_if_t<
-    feeunit::is_usable_unit_v<Fee> &&
-    std::is_assignable_v<T, typename Fee::value_type>,
-        STObject::ValueProxy<T>&>
-STObject::ValueProxy<T>::operator= (Fee const& u)
-{
-    this->assign(u.value());
-    return *this;
-}
-
-template <class T>
 STObject::ValueProxy<T>::operator value_type() const
 {
     return this->value();
@@ -845,18 +819,6 @@ std::enable_if_t<
 STObject::OptionalProxy<T>::operator=(U&& u)
 {
     this->assign(std::forward<U>(u));
-    return *this;
-}
-
-template <class T>
-template <class Fee>
-std::enable_if_t<
-    feeunit::is_usable_unit_v<Fee> &&
-    std::is_assignable_v<T, typename Fee::value_type>,
-        STObject::OptionalProxy<T>&>
-STObject::OptionalProxy<T>::operator= (Fee const& u)
-{
-    this->assign(u.value());
     return *this;
 }
 

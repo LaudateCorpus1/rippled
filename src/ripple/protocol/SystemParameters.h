@@ -52,6 +52,12 @@ bool isLegalAmount (XRPAmount const& amount)
     return amount <= INITIAL_XRP;
 }
 
+inline
+bool isLegalAmount (std::uint64_t amount)
+{
+    return amount <= INITIAL_XRP;
+}
+
 /* The currency code for the native currency. */
 static inline
 std::string const&

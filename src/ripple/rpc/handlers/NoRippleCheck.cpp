@@ -44,7 +44,7 @@ static void fillTransaction (
     // Convert the reference transaction cost in fee units to drops
     // scaled to represent the current fee load.
     txArray["Fee"] = scaleFeeLoad(fees.units,
-        context.app.getFeeTrack(), fees, false).json();
+        context.app.getFeeTrack(), fees, false).jsonClipped();
 }
 
 // {
