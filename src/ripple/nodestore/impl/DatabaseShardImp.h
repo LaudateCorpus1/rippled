@@ -171,7 +171,7 @@ private:
     std::unique_ptr<nudb::context> ctx_;
 
     // Complete shards
-    std::map<std::uint32_t, std::unique_ptr<Shard>> complete_;
+    std::map<std::uint32_t, std::shared_ptr<Shard>> complete_;
 
     // A shard being acquired from the peer network
     std::unique_ptr<Shard> incomplete_;

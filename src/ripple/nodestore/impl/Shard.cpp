@@ -55,7 +55,7 @@ Shard::Shard(
 bool
 Shard::open(Scheduler& scheduler, nudb::context& ctx)
 {
-    std::lock_guard<std::mutex> lock(mutex_);
+    std::lock_guard lock(mutex_);
     assert(!backend_);
 
     Config const& config {app_.config()};
@@ -158,7 +158,7 @@ Shard::open(Scheduler& scheduler, nudb::context& ctx)
 bool
 Shard::setStored(std::shared_ptr<Ledger const> const& ledger)
 {
-    std::lock_guard<std::mutex> lock(mutex_);
+    std::lock_guard lock(mutex_);
     assert(backend_ && !complete_);
 
     if (boost::icl::contains(storedSeqs_, ledger->info().seq))
@@ -194,7 +194,7 @@ Shard::setStored(std::shared_ptr<Ledger const> const& ledger)
 boost::optional<std::uint32_t>
 Shard::prepare()
 {
-    std::lock_guard<std::mutex> lock(mutex_);
+    std::lock_guard lock(mutex_);
     assert(backend_ && !complete_);
 
     if (storedSeqs_.empty())
@@ -205,31 +205,100 @@ Shard::prepare()
 bool
 Shard::contains(std::uint32_t seq) const
 {
-    assert(backend_);
     if (seq < firstSeq_ || seq > lastSeq_)
         return false;
 
-    std::lock_guard<std::mutex> lock(mutex_);
+    std::lock_guard lock(mutex_);
+    assert(backend_);
+
     return complete_ || boost::icl::contains(storedSeqs_, seq);
 }
 
 void
 Shard::sweep()
 {
-    assert(backend_);
+    std::lock_guard lock(mutex_);
+    assert(pCache_ && nCache_);
+
     pCache_->sweep();
     nCache_->sweep();
+}
+
+std::shared_ptr<Backend> const&
+Shard::getBackend() const
+{
+    std::lock_guard lock(mutex_);
+    assert(backend_);
+
+    return backend_;
+}
+
+bool
+Shard::complete() const
+{
+    std::lock_guard lock(mutex_);
+    assert(backend_);
+
+    return complete_;
+}
+
+std::shared_ptr<PCache>
+Shard::pCache() const
+{
+    std::lock_guard lock(mutex_);
+    assert(pCache_);
+
+    return pCache_;
+}
+
+std::shared_ptr<NCache>
+Shard::nCache() const
+{
+    std::lock_guard lock(mutex_);
+    assert(nCache_);
+
+    return nCache_;
+}
+
+std::uint64_t
+Shard::fileSize() const
+{
+    std::lock_guard lock(mutex_);
+    assert(backend_);
+
+    return fileSz_;
+}
+
+std::uint32_t
+Shard::fdRequired() const
+{
+    std::lock_guard lock(mutex_);
+    assert(backend_);
+
+    return fdRequired_;
+}
+
+std::shared_ptr<Ledger const>
+Shard::lastStored() const
+{
+    std::lock_guard lock(mutex_);
+    assert(backend_);
+
+    return lastStored_;
 }
 
 bool
 Shard::validate()
 {
     uint256 hash;
-    std::uint32_t seq;
+    std::uint32_t seq {0};
     std::shared_ptr<Ledger> ledger;
-    auto fail = [this](std::string const& msg)
+    auto fail = [this, &hash, seq](std::string const& msg)
     {
-        JLOG(j_.error()) << "shard " << index_ << " " << msg;
+        JLOG(j_.error()) <<
+            "shard " << index_ << ". " << msg <<
+            (hash.isZero() ? "" : ". Ledger hash " + to_string(hash)) <<
+            (seq == 0 ? "" : ". Ledger sequence " + std::to_string(seq));
         return false;
     };
 
@@ -239,13 +308,13 @@ Shard::validate()
             "WHERE LedgerSeq >= " + std::to_string(lastSeq_) +
             " order by LedgerSeq desc limit 1", app_, false);
         if (!ledger)
-            return fail("is unable to validate due to lacking lookup data");
+            return fail("Unable to validate due to lacking lookup data");
 
         if (seq != lastSeq_)
         {
-            ledger->setImmutable(app_.config());
             boost::optional<uint256> h;
 
+            ledger->setImmutable(app_.config());
             try
             {
                 h = hashOfSeq(*ledger, lastSeq_, j_);
@@ -257,23 +326,11 @@ Shard::validate()
             }
 
             if (!h)
-            {
-                return fail("is missing hash for last ledger sequence " +
-                    std::to_string(lastSeq_));
-            }
+                return fail("Missing hash for last ledger sequence");
             hash = *h;
             seq = lastSeq_;
         }
     }
-
-    JLOG(j_.debug()) <<
-        "shard " << index_ <<
-        " has ledger sequences " << firstSeq_ << "-" << lastSeq_;
-
-    // Use a short age to keep memory consumption low
-    auto const savedAge {pCache_->getTargetAge()};
-    using namespace std::chrono_literals;
-    pCache_->setTargetAge(1s);
 
     // Validate every ledger stored in this shard
     std::shared_ptr<Ledger const> next;
@@ -281,176 +338,49 @@ Shard::validate()
     {
         auto nObj = valFetch(hash);
         if (!nObj)
-            break;
+            return fail("Invalid ledger");
+
         ledger = std::make_shared<Ledger>(
-            InboundLedger::deserializeHeader(makeSlice(nObj->getData()),
-                true), app_.config(), *app_.shardFamily());
+            InboundLedger::deserializeHeader(makeSlice(nObj->getData()), true),
+            app_.config(),
+            *app_.shardFamily());
         if (ledger->info().seq != seq)
-        {
-            fail("encountered invalid ledger sequence " + std::to_string(seq));
-            break;
-        }
+            return fail("Invalid ledger header sequence");
         if (ledger->info().hash != hash)
-        {
-            fail("encountered invalid ledger hash " + to_string(hash) +
-                " on sequence " + std::to_string(seq));
-            break;
-        }
+            return fail("Invalid ledger header hash");
+
         ledger->stateMap().setLedgerSeq(seq);
         ledger->txMap().setLedgerSeq(seq);
         ledger->setImmutable(app_.config());
         if (!ledger->stateMap().fetchRoot(
             SHAMapHash {ledger->info().accountHash}, nullptr))
         {
-            fail("is missing root STATE node on sequence " +
-                std::to_string(seq));
-            break;
+            return fail("Missing root STATE node");
         }
-        if (ledger->info().txHash.isNonZero())
+        if (ledger->info().txHash.isNonZero() &&
+            !ledger->txMap().fetchRoot(
+                SHAMapHash {ledger->info().txHash},
+                nullptr))
         {
-            if (!ledger->txMap().fetchRoot(
-                SHAMapHash {ledger->info().txHash}, nullptr))
-            {
-                fail("is missing root TXN node on sequence " +
-                    std::to_string(seq));
-                break;
-            }
+            return fail("Missing root TXN node");
         }
+
         if (!valLedger(ledger, next))
-            break;
+            return false;
+
         hash = ledger->info().parentHash;
         --seq;
         next = ledger;
-        if (seq % 128 == 0)
-            pCache_->sweep();
     }
 
-    pCache_->reset();
-    nCache_->reset();
-    pCache_->setTargetAge(savedAge);
-
-    if (seq >= firstSeq_)
     {
-        return fail(std::string(" is ") +
-            (complete_ ? "invalid, failed" : "incomplete, stopped") +
-            " on hash " + to_string(hash) + " on sequence " +
-            std::to_string(seq));
+        std::lock_guard lock(mutex_);
+        pCache_->reset();
+        nCache_->reset();
     }
 
-    JLOG(j_.debug()) <<
-        "shard " << index_ << " is valid and complete";
+    JLOG(j_.debug()) << "shard " << index_ << " is valid";
     return true;
-}
-
-bool
-Shard::valLedger(std::shared_ptr<Ledger const> const& ledger,
-    std::shared_ptr<Ledger const> const& next)
-{
-    auto fail = [this](std::string const& msg)
-    {
-        JLOG(j_.error()) << "shard " << index_ << " " << msg;
-        return false;
-    };
-
-    if (ledger->info().hash.isZero())
-    {
-        return fail("encountered a zero ledger hash on sequence " +
-            std::to_string(ledger->info().seq));
-    }
-    if (ledger->info().accountHash.isZero())
-    {
-        return fail("encountered a zero account hash on sequence " +
-            std::to_string(ledger->info().seq));
-    }
-
-    bool error {false};
-    auto f = [this, &error](SHAMapAbstractNode& node)
-    {
-        if (!valFetch(node.getNodeHash().as_uint256()))
-            error = true;
-        return !error;
-    };
-
-    // Validate the state map
-    if (ledger->stateMap().getHash().isNonZero())
-    {
-        if (!ledger->stateMap().isValid())
-        {
-            return fail("has an invalid state map on sequence " +
-                std::to_string(ledger->info().seq));
-        }
-
-        try
-        {
-            if (next && next->info().parentHash == ledger->info().hash)
-                ledger->stateMap().visitDifferences(&next->stateMap(), f);
-            else
-                ledger->stateMap().visitNodes(f);
-        }
-        catch (std::exception const& e)
-        {
-            return fail(std::string("exception ") +
-                e.what() + " in function " + __func__);
-        }
-        if (error)
-            return false;
-    }
-    // Validate the transaction map
-    if (ledger->info().txHash.isNonZero())
-    {
-        if (!ledger->txMap().isValid())
-        {
-            return fail("has an invalid transaction map on sequence " +
-                std::to_string(ledger->info().seq));
-        }
-
-        try
-        {
-            ledger->txMap().visitNodes(f);
-        }
-        catch (std::exception const& e)
-        {
-            return fail(std::string("exception ") +
-                e.what() + " in function " + __func__);
-        }
-        if (error)
-            return false;
-    }
-    return true;
-};
-
-std::shared_ptr<NodeObject>
-Shard::valFetch(uint256 const& hash)
-{
-    assert(backend_);
-    std::shared_ptr<NodeObject> nObj;
-    auto fail = [this, &nObj](std::string const& msg)
-    {
-        JLOG(j_.error()) << "shard " << index_ << " " << msg;
-        nObj.reset();
-        return nObj;
-    };
-
-    try
-    {
-        switch (backend_->fetch(hash.begin(), &nObj))
-        {
-        case ok:
-            break;
-        case notFound:
-            return fail("is missing node object on hash " + to_string(hash));
-        case dataCorrupt:
-            return fail("has a corrupt node object on hash " + to_string(hash));
-        default:
-            return fail("encountered unknown error on hash " + to_string(hash));
-        }
-    }
-    catch (std::exception const& e)
-    {
-        return fail(std::string("exception ") +
-            e.what() + " in function " + __func__);
-    }
-    return nObj;
 }
 
 bool
@@ -788,6 +718,121 @@ Shard::saveControl(std::lock_guard<std::mutex> const&)
     boost::archive::text_oarchive ar(ofs);
     ar & storedSeqs_;
     return true;
+}
+
+bool
+Shard::valLedger(
+    std::shared_ptr<Ledger const> const& ledger,
+    std::shared_ptr<Ledger const> const& next)
+{
+    auto fail = [this, &ledger](std::string const& msg)
+    {
+        JLOG(j_.error()) <<
+            "shard " << index_ << ". " << msg <<
+            (ledger->info().hash.isZero() ?
+                "" : ". Ledger header hash " +
+                to_string(ledger->info().hash)) <<
+            (ledger->info().seq == 0 ?
+                "" : ". Ledger header sequence " +
+                std::to_string(ledger->info().seq));
+        return false;
+    };
+
+    if (ledger->info().hash.isZero())
+        return fail("Invalid ledger header hash");
+    if (ledger->info().accountHash.isZero())
+        return fail("Invalid ledger header account hash");
+
+    bool error {false};
+    auto visit = [this, &error](SHAMapAbstractNode& node)
+    {
+        if (!valFetch(node.getNodeHash().as_uint256()))
+            error = true;
+        return !error;
+    };
+
+    // Validate the state map
+    if (ledger->stateMap().getHash().isNonZero())
+    {
+        if (!ledger->stateMap().isValid())
+            return fail("Invalid state map");
+
+        try
+        {
+            if (next && next->info().parentHash == ledger->info().hash)
+                ledger->stateMap().visitDifferences(&next->stateMap(), visit);
+            else
+                ledger->stateMap().visitNodes(visit);
+        }
+        catch (std::exception const& e)
+        {
+            return fail(std::string("exception ") +
+                e.what() + " in function " + __func__);
+        }
+        if (error)
+            return fail("Invalid state map");
+    }
+
+    // Validate the transaction map
+    if (ledger->info().txHash.isNonZero())
+    {
+        if (!ledger->txMap().isValid())
+            return fail("Invalid transaction map");
+
+        try
+        {
+            ledger->txMap().visitNodes(visit);
+        }
+        catch (std::exception const& e)
+        {
+            return fail(std::string("exception ") +
+                e.what() + " in function " + __func__);
+        }
+        if (error)
+            return fail("Invalid transaction map");
+    }
+    return true;
+};
+
+std::shared_ptr<NodeObject>
+Shard::valFetch(uint256 const& hash)
+{
+    std::shared_ptr<NodeObject> nObj;
+    auto fail = [this, &hash, &nObj](std::string const& msg)
+    {
+        JLOG(j_.error()) <<
+            "shard " << index_ << ". " << msg <<
+            ". Node object hash " << to_string(hash);
+        nObj.reset();
+        return nObj;
+    };
+    Status status;
+
+    try
+    {
+        {
+            std::lock_guard lock(mutex_);
+            status = backend_->fetch(hash.begin(), &nObj);
+        }
+
+        switch (status)
+        {
+        case ok:
+            break;
+        case notFound:
+            return fail("Missing node object");
+        case dataCorrupt:
+            return fail("Corrupt node object");
+        default:
+            return fail("Unknown error");
+        }
+    }
+    catch (std::exception const& e)
+    {
+        return fail(std::string("exception ") +
+            e.what() + " in function " + __func__);
+    }
+    return nObj;
 }
 
 } // NodeStore

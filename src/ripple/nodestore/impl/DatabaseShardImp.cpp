@@ -490,7 +490,7 @@ DatabaseShardImp::importShard(std::uint32_t shardIndex,
         preShards_.erase(shardIndex);
     }
 
-    std::lock_guard<std::mutex> lock(m_);
+    std::lock_guard lock(m_);
     setFileStats(lock);
     updateStatus(lock);
     return true;
@@ -622,36 +622,36 @@ DatabaseShardImp::getCompleteShards()
 void
 DatabaseShardImp::validate()
 {
+    std::map<std::uint32_t, std::shared_ptr<Shard>> completeCpy;
+    RangeSet<std::uint32_t> rs;
+
     {
         std::lock_guard lock(m_);
         assert(init_);
 
-        if (complete_.empty() && !incomplete_)
+        if (complete_.empty())
         {
             JLOG(j_.error()) << "no shards found to validate";
             return;
         }
-
-        std::string s {"Found shards "};
-        for (auto const& e : complete_)
-            s += std::to_string(e.second->index()) + ",";
-        if (incomplete_)
-            s += std::to_string(incomplete_->index());
-        else
-            s.pop_back();
-        JLOG(j_.debug()) << s;
+        completeCpy = complete_;
     }
 
-    for (auto& e : complete_)
+    for (auto const &[_, shard] : completeCpy)
     {
-        app_.shardFamily()->reset();
-        e.second->validate();
+        (void)_;
+        rs.insert(shard->index());
     }
-    if (incomplete_)
+
+    JLOG(j_.debug()) << "Validating shards " << to_string(rs);
+
+    // Verify each complete stored shard
+    for (auto const &[_, shard] : completeCpy)
     {
-        app_.shardFamily()->reset();
-        incomplete_->validate();
+        (void)_;
+        shard->validate();
     }
+
     app_.shardFamily()->reset();
 }
 
