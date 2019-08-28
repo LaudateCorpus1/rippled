@@ -26,7 +26,7 @@
 #include <ripple/protocol/Issue.h>
 #include <ripple/protocol/STAmount.h>
 #include <ripple/basics/contract.h>
-#include <ripple/basics/feeunits.h>
+#include <ripple/basics/FeeUnits.h>
 #include <cstdint>
 #include <ostream>
 #include <string>

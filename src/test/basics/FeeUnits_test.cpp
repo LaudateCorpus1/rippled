@@ -16,7 +16,7 @@
     OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 */
 
-#include <ripple/basics/feeunits.h>
+#include <ripple/basics/FeeUnits.h>
 #include <ripple/beast/unit_test.h>
 #include <ripple/protocol/SystemParameters.h>
 #include <type_traits>

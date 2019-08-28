@@ -20,7 +20,7 @@
 #ifndef RIPPLE_CORE_LOADFEETRACK_H_INCLUDED
 #define RIPPLE_CORE_LOADFEETRACK_H_INCLUDED
 
-#include <ripple/basics/feeunits.h>
+#include <ripple/basics/FeeUnits.h>
 #include <ripple/json/json_value.h>
 #include <ripple/beast/utility/Journal.h>
 #include <algorithm>

@@ -23,7 +23,7 @@
 #include <ripple/basics/chrono.h>
 #include <ripple/basics/contract.h>
 #include <ripple/basics/CountedObject.h>
-#include <ripple/basics/feeunits.h>
+#include <ripple/basics/FeeUnits.h>
 #include <ripple/basics/Slice.h>
 #include <ripple/protocol/STAmount.h>
 #include <ripple/protocol/STPathSet.h>

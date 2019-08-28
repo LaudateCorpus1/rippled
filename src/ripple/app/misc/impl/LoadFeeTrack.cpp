@@ -19,7 +19,7 @@
 
 #include <ripple/app/misc/LoadFeeTrack.h>
 #include <ripple/basics/contract.h>
-#include <ripple/basics/feeunits.h>
+#include <ripple/basics/FeeUnits.h>
 #include <ripple/basics/Log.h>
 #include <ripple/basics/safe_cast.h>
 #include <ripple/core/Config.h>

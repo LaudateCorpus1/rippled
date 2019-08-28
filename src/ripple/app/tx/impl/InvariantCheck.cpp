@@ -18,7 +18,7 @@
 //==============================================================================
 
 #include <ripple/app/tx/impl/InvariantCheck.h>
-#include <ripple/basics/feeunits.h>
+#include <ripple/basics/FeeUnits.h>
 #include <ripple/basics/Log.h>
 #include <ripple/protocol/SystemParameters.h>
 

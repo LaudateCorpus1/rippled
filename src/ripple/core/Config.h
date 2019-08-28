@@ -22,7 +22,7 @@
 
 #include <ripple/basics/BasicConfig.h>
 #include <ripple/basics/base_uint.h>
-#include <ripple/basics/feeunits.h>
+#include <ripple/basics/FeeUnits.h>
 #include <ripple/protocol/SystemParameters.h> // VFALCO Breaks levelization
 #include <ripple/beast/net/IPEndpoint.h>
 #include <boost/beast/core/string.hpp>

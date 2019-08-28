@@ -1,4 +1,4 @@
- //------------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 /*
     This file is part of rippled: https://github.com/ripple/rippled
     Copyright (c) 2019 Ripple Labs Inc.
@@ -92,7 +92,7 @@ class FeeVote_test :
         }
     }
 
-    void run()
+    void run() override
     {
         testSetup();
     }

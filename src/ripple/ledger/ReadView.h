@@ -22,7 +22,7 @@
 
 #include <ripple/ledger/detail/ReadViewFwdRange.h>
 #include <ripple/basics/chrono.h>
-#include <ripple/basics/feeunits.h>
+#include <ripple/basics/FeeUnits.h>
 #include <ripple/basics/IOUAmount.h>
 #include <ripple/basics/XRPAmount.h>
 #include <ripple/protocol/Indexes.h>
