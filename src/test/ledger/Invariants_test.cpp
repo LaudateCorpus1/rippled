@@ -266,7 +266,7 @@ class Invariants_test : public beast::unit_test::suite
         doInvariantCheck (enabled,
             {{ "incorrect account XRP balance" },
              {  "XRP net change was positive: 99999999000000001" }},
-            [](Account const& A1, Account const&, ApplyContext& ac)
+            [self = this](Account const& A1, Account const&, ApplyContext& ac)
             {
                 // balance exceeds genesis amount
                 auto const sle = ac.view().peek (keylet::account(A1.id()));
@@ -276,6 +276,7 @@ class Invariants_test : public beast::unit_test::suite
                 // with an invalid value
                 sle->setFieldAmount (sfBalance,
                     INITIAL_XRP + drops(1));
+                self->BEAST_EXPECT(!sle->getFieldAmount(sfBalance).negative());
                 ac.view().update (sle);
                 return true;
             });
@@ -283,13 +284,14 @@ class Invariants_test : public beast::unit_test::suite
         doInvariantCheck (enabled,
             {{ "incorrect account XRP balance" },
              { "XRP net change of -1000000001 doesn't match fee 0" }},
-            [](Account const& A1, Account const&, ApplyContext& ac)
+            [self = this](Account const& A1, Account const&, ApplyContext& ac)
             {
                 // balance is negative
                 auto const sle = ac.view().peek (keylet::account(A1.id()));
                 if(! sle)
                     return false;
-                sle->setFieldAmount (sfBalance, -1);
+                sle->setFieldAmount (sfBalance, {1, true});
+                self->BEAST_EXPECT(sle->getFieldAmount(sfBalance).negative());
                 ac.view().update (sle);
                 return true;
             });

@@ -45,9 +45,9 @@ struct dropTag;
 
 class XRPAmount
     : private boost::totally_ordered <XRPAmount>
-    , private boost::less_than_comparable <XRPAmount, std::uint64_t>
     , private boost::additive <XRPAmount>
     , private boost::equality_comparable <XRPAmount, std::int64_t>
+    , private boost::additive <XRPAmount, std::int64_t>
     , private boost::dividable <XRPAmount, std::int64_t>
     , private boost::modable <XRPAmount, std::int64_t>
     , private boost::unit_steppable <XRPAmount>
@@ -94,7 +94,7 @@ public:
     XRPAmount
     operator*(value_type const& rhs) const
     {
-        return { drops_ * rhs };
+        return XRPAmount{ drops_ * rhs };
     }
 
     friend
@@ -142,6 +142,20 @@ public:
     }
 
     XRPAmount&
+    operator+= (value_type const& rhs)
+    {
+        drops_ += rhs;
+        return *this;
+    }
+
+    XRPAmount&
+    operator-= (value_type const& rhs)
+    {
+        drops_ -= rhs;
+        return *this;
+    }
+
+    XRPAmount&
     operator*= (value_type const& rhs)
     {
         drops_ *= rhs;
@@ -165,7 +179,7 @@ public:
     XRPAmount
     operator- () const
     {
-        return { -drops_ };
+        return XRPAmount{ -drops_ };
     }
 
     bool
@@ -184,18 +198,6 @@ public:
     operator<(XRPAmount const& other) const
     {
         return drops_ < other.drops_;
-    }
-
-    bool
-    operator<(std::uint64_t other) const
-    {
-        return drops_ < other;
-    }
-
-    bool
-    operator>(std::uint64_t other) const
-    {
-        return drops_ > other;
     }
 
     /** Returns true if the amount is not zero */

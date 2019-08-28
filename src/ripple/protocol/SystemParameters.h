@@ -55,7 +55,9 @@ bool isLegalAmount (XRPAmount const& amount)
 inline
 bool isLegalAmount (std::uint64_t amount)
 {
-    return amount <= INITIAL_XRP;
+    auto const initial = INITIAL_XRP.dropsAs<std::uint64_t>();
+    assert(initial);
+    return initial && amount <= *initial;
 }
 
 /* The currency code for the native currency. */

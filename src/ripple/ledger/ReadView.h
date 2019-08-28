@@ -69,7 +69,7 @@ struct Fees
     std::pair<bool, XRPAmount>
     toDrops(FeeUnit64 const& fee) const
     {
-        return mulDiv(base.drops(), fee, units);
+        return mulDiv(base, fee, units);
     }
 };
 

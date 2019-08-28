@@ -64,7 +64,7 @@ struct None
 // This value is also defined in SystemParameters.h. It's
 // duplicated here to catch any possible future errors that
 // could change that value (however unlikely).
-constexpr XRPAmount dropsPerXRP = { 1'000'000 };
+constexpr XRPAmount dropsPerXRP{ 1'000'000 };
 
 /** Represents an XRP or IOU quantity
     This customizes the string conversion and supports

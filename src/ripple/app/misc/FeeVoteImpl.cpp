@@ -172,7 +172,8 @@ FeeVoteImpl::doVoting(
             {
                 auto const vote = val->getFieldU64 (sfBaseFee);
                 if (isLegalAmount(vote))
-                    baseFeeVote.addVote (vote);
+                    baseFeeVote.addVote(XRPAmount{
+                        unsafe_cast<XRPAmount::value_type>(vote)});
                 else
                     // Invalid amounts will be treated as if they're
                     // not provided. Don't throw because this value is
@@ -186,7 +187,8 @@ FeeVoteImpl::doVoting(
 
             if (val->isFieldPresent (sfReserveBase))
             {
-                baseReserveVote.addVote (val->getFieldU32 (sfReserveBase));
+                baseReserveVote.addVote(XRPAmount{
+                    val->getFieldU32(sfReserveBase)});
             }
             else
             {
@@ -195,7 +197,8 @@ FeeVoteImpl::doVoting(
 
             if (val->isFieldPresent (sfReserveIncrement))
             {
-                incReserveVote.addVote (val->getFieldU32 (sfReserveIncrement));
+                incReserveVote.addVote (XRPAmount{
+                    val->getFieldU32 (sfReserveIncrement)});
             }
             else
             {

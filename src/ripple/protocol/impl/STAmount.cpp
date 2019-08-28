@@ -205,6 +205,7 @@ STAmount::STAmount (SField const& name,
     , mIsNative (true)
     , mIsNegative (negative)
 {
+    assert(mValue <= std::numeric_limits<std::int64_t>::max());
 }
 
 STAmount::STAmount (SField const& name, Issue const& issue,
@@ -215,6 +216,7 @@ STAmount::STAmount (SField const& name, Issue const& issue,
     , mOffset (exponent)
     , mIsNegative (negative)
 {
+    assert(mValue <= std::numeric_limits<std::int64_t>::max());
     canonicalize ();
 }
 
@@ -226,6 +228,7 @@ STAmount::STAmount (std::uint64_t mantissa, bool negative)
     , mIsNative (true)
     , mIsNegative (mantissa != 0 && negative)
 {
+    assert(mValue <= std::numeric_limits<std::int64_t>::max());
 }
 
 STAmount::STAmount (Issue const& issue,
@@ -235,6 +238,7 @@ STAmount::STAmount (Issue const& issue,
     , mOffset (exponent)
     , mIsNegative (negative)
 {
+    assert(mValue <= std::numeric_limits<std::int64_t>::max());
     canonicalize ();
 }
 
@@ -310,7 +314,7 @@ STAmount::xrp () const
     if (mIsNegative)
         drops = -drops;
 
-    return { drops };
+    return XRPAmount{ drops };
 }
 
 IOUAmount

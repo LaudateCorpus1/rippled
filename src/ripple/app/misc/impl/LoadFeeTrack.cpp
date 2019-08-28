@@ -90,7 +90,7 @@ scaleFeeLoad(FeeUnit64 fee, LoadFeeTrack const& feeTrack,
     Fees const& fees, bool bUnlimited)
 {
     if (fee == 0)
-        return 0;
+        return XRPAmount{0};
 
     // Normally, types with different units wouldn't be mathematically
     // compatible. This function is an exception.
@@ -149,8 +149,8 @@ scaleFeeLoad(FeeUnit64 fee, LoadFeeTrack const& feeTrack,
     assert(fee.value() >= baseFee.value());
 
     // If baseFee * feeFactor overflows, the final result will overflow
-    constexpr XRPAmount max =
-        std::numeric_limits<XRPAmount::value_type>::max();
+    constexpr XRPAmount max{
+        std::numeric_limits<XRPAmount::value_type>::max()};
     if (baseFee > max / feeFactor)
         Throw<std::overflow_error> ("scaleFeeLoad");
     baseFee *= feeFactor;

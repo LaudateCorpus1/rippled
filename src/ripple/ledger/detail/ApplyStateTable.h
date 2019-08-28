@@ -51,7 +51,7 @@ private:
         std::pair<Action, std::shared_ptr<SLE>>>;
 
     items_t items_;
-    XRPAmount dropsDestroyed_ = 0;
+    XRPAmount dropsDestroyed_{0};
 
 public:
     ApplyStateTable() = default;
