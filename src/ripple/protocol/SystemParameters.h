@@ -43,7 +43,7 @@ systemName ()
 static
 constexpr
 XRPAmount
-INITIAL_XRP{ 100'000'000'000 * DROPS_PER_XRP };
+INITIAL_XRP{ static_cast<std::int64_t>(100'000'000'000) * DROPS_PER_XRP };
 
 /** Returns true if the amount does not exceed the initial XRP in existence. */
 inline

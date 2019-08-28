@@ -132,8 +132,7 @@ public:
     {
         // Explicitly test every defined function for the TaggedFee class
         // since some of them are templated, but not used anywhere else.
-        auto make = [&](auto x) -> XRPAmount {
-            return x; };
+        auto make = [&](auto x) -> XRPAmount { return XRPAmount{x}; };
 
         XRPAmount defaulted;
         (void)defaulted;
