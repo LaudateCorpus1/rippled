@@ -421,78 +421,76 @@ DatabaseShardImp::importShard(std::uint32_t shardIndex,
         return true;
     };
 
+    std::unique_lock<std::mutex> lock(m_);
+    assert(init_);
+
+    // Check shard is prepared
+    auto it {preShards_.find(shardIndex)};
+    if(it == preShards_.end())
     {
-        std::unique_lock<std::mutex> lock(m_);
-        assert(init_);
-
-        // Check shard is prepared
-        auto it {preShards_.find(shardIndex)};
-        if(it == preShards_.end())
-        {
-            JLOG(j_.error()) << "shard " << shardIndex << " is an invalid index";
-            return false;
-        }
-
-        // Move source directory to the shard database directory
-        auto const dstDir {dir_ / std::to_string(shardIndex)};
-        if (!move(srcDir, dstDir))
-            return false;
-
-        // Create the new shard
-        auto shard {std::make_unique<Shard>(app_, *this, shardIndex, j_)};
-        auto fail = [&](std::string const& msg)
-        {
-            if (!msg.empty())
-            {
-                JLOG(j_.error()) << "shard " << shardIndex << " " << msg;
-            }
-            shard.reset();
-            move(dstDir, srcDir);
-            return false;
-        };
-
-        if (!shard->open(scheduler_, *ctx_))
-            return fail({});
-        if (!shard->complete())
-            return fail("is incomplete");
-
-        try
-        {
-            // Verify database integrity
-            shard->getBackend()->verify();
-        }
-        catch (std::exception const& e)
-        {
-            return fail(std::string("exception ") +
-                e.what() + " in function " + __func__);
-        }
-
-        // Validate shard ledgers
-        if (validate)
-        {
-            // Shard validation requires releasing the lock
-            // so the database can fetch data from it
-            it->second = shard.get();
-            lock.unlock();
-            auto const valid {shard->validate()};
-            lock.lock();
-            if (!valid)
-            {
-                it = preShards_.find(shardIndex);
-                if(it != preShards_.end())
-                    it->second = nullptr;
-                return fail("failed validation");
-            }
-        }
-
-        // Add the shard
-        complete_.emplace(shardIndex, std::move(shard));
-        preShards_.erase(shardIndex);
+        JLOG(j_.error()) << "shard " << shardIndex << " is an invalid index";
+        return false;
     }
 
-    std::lock_guard lock(m_);
-    setFileStats(lock);
-    updateStatus(lock);
+    // Move source directory to the shard database directory
+    auto const dstDir {dir_ / std::to_string(shardIndex)};
+    if (!move(srcDir, dstDir))
+        return false;
+
+    // Create the new shard
+    auto shard {std::make_unique<Shard>(app_, *this, shardIndex, j_)};
+    auto fail = [&](std::string const& msg)
+    {
+        if (!msg.empty())
+        {
+            JLOG(j_.error()) << "shard " << shardIndex << " " << msg;
+        }
+        shard.reset();
+        move(dstDir, srcDir);
+        return false;
+    };
+
+    if (!shard->open(scheduler_, *ctx_))
+        return fail({});
+    if (!shard->complete())
+        return fail("is incomplete");
+
+    try
+    {
+        // Verify database integrity
+        shard->getBackend()->verify();
+    }
+    catch (std::exception const& e)
+    {
+        return fail(std::string("exception ") +
+            e.what() + " in function " + __func__);
+    }
+
+    // Validate shard ledgers
+    if (validate)
+    {
+        // Shard validation requires releasing the lock
+        // so the database can fetch data from it
+        it->second = shard.get();
+        lock.unlock();
+        auto const valid {shard->validate()};
+        lock.lock();
+        if (!valid)
+        {
+            it = preShards_.find(shardIndex);
+            if(it != preShards_.end())
+                it->second = nullptr;
+            return fail("failed validation");
+        }
+    }
+
+    // Add the shard
+    complete_.emplace(shardIndex, std::move(shard));
+    preShards_.erase(shardIndex);
+
+    std::lock_guard lockg(*lock.release(), std::adopt_lock);
+    setFileStats(lockg);
+    updateStatus(lockg);
     return true;
 }
 
