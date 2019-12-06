@@ -1976,6 +1976,17 @@ bool ApplicationImp::loadOldLedger (
                 }
             }
         }
+        using namespace std::chrono_literals;
+        static constexpr char ledgerWarnTime[] {"Jan 01, 2018 00:00:00 UTC"};
+        static constexpr NetClock::time_point ledgerWarnTimePoint {568080000s};
+        if (loadLedger->info().closeTime < ledgerWarnTimePoint)
+        {
+            JLOG(m_journal.fatal()) <<
+                "\n\n*** You are replaying a ledger from before " <<
+                ledgerWarnTime << " ***\n"
+                "*** You may want to run an earlier version of rippled ***\n"
+                "*** that supports the older rules.  Continuing. ***\n";
+        }
 
         JLOG(m_journal.info()) <<
             "Loading ledger " << loadLedger->info().hash <<
