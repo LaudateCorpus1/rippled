@@ -35,17 +35,6 @@
 
 namespace ripple {
 
-LocalValue<bool> stAmountCalcSwitchover(true);
-LocalValue<bool> stAmountCalcSwitchover2(true);
-
-using namespace std::chrono_literals;
-
-// Mon Dec 28, 2015 18:00:00 UTC
-const NetClock::time_point STAmountSO::soTime{504640800s};
-
-// Sat Feb 27, 2016 05:00:00 UTC
-const NetClock::time_point STAmountSO::soTime2{509864400s};
-
 static const std::uint64_t tenTo14 = 100000000000000ull;
 static const std::uint64_t tenTo14m1 = tenTo14 - 1;
 static const std::uint64_t tenTo17 = tenTo14 * 1000;
@@ -1240,9 +1229,9 @@ mulRound (STAmount const& v1, STAmount const& v2, Issue const& issue,
     STAmount result (issue, amount, offset, resultNegative);
 
     // Control when bugfixes that require switchover dates are enabled
-    if (roundUp && !resultNegative && !result && *stAmountCalcSwitchover)
+    if (roundUp && !resultNegative && !result)
     {
-        if (xrp && *stAmountCalcSwitchover2)
+        if (xrp)
         {
             // return the smallest value above zero
             amount = 1;
@@ -1312,9 +1301,9 @@ divRound (STAmount const& num, STAmount const& den,
 
     STAmount result (issue, amount, offset, resultNegative);
     // Control when bugfixes that require switchover dates are enabled
-    if (roundUp && !resultNegative && !result && *stAmountCalcSwitchover)
+    if (roundUp && !resultNegative && !result)
     {
-        if (isXRP(issue) && *stAmountCalcSwitchover2)
+        if (isXRP(issue))
         {
             // return the smallest value above zero
             amount = 1;
