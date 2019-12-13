@@ -718,10 +718,7 @@ BookStep<TIn, TOut, TDerived>::revImp (
             // subtracting them leaves a result of zero. This can cause the check for
             // (stpAmt.out > remainingOut) to incorrectly think an offer will be funded
             // after subtracting remainingIn.
-            if (fix1298(sb.parentCloseTime()))
-                return offer.fully_consumed();
-            else
-                return false;
+            return offer.fully_consumed();
         }
     };
 
@@ -884,10 +881,7 @@ BookStep<TIn, TOut, TDerived>::fwdImp (
         // subtracting them leaves a result of zero. This can cause the check for
         // (stpAmt.in > remainingIn) to incorrectly think an offer will be funded
         // after subtracting remainingIn.
-        if (fix1298(sb.parentCloseTime()))
-            processMore = processMore || offer.fully_consumed();
-
-        return processMore;
+        return processMore || offer.fully_consumed();
     };
 
     {
