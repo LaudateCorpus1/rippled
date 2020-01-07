@@ -49,9 +49,13 @@ namespace detail {
 // *NOTE*
 //
 // Features, or Amendments as they are called elsewhere, are enabled on the
-// network at some specific time based on Validator voting.  Once an
-// Amendment has been enabled for, say, more than two years then retaining
-// the conditional code based on the Amendment is pointless.
+// network at some specific time based on Validator voting.  Features are
+// enabled using run-time conditionals based on the state of the amendment.
+// There is value in retaining that conditional code for some time after
+// the amendment is enabled to make it simple to replay old transactions.
+// However, once an Amendment has been enabled for, say, more than two years
+// then retaining that conditional code has less value since it is
+// uncommon to replay such old transactions.
 //
 // Starting in January of 2020 Amendment conditionals from before January
 // 2018 are being removed.  So replaying any ledger from before January
