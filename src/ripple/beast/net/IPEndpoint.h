@@ -30,6 +30,8 @@
 #include <ios>
 #include <string>
 
+namespace ripple { class OverlayImpl; }
+
 namespace beast {
 namespace IP {
 
@@ -104,8 +106,13 @@ public:
     }
 
 private:
+    friend class ripple::OverlayImpl;
+    /** Updates the port */
+    void set_port (Port port) const
+    { m_port = port; }
+
     Address m_addr;
-    Port m_port;
+    mutable Port m_port;
 };
 
 //------------------------------------------------------------------------------

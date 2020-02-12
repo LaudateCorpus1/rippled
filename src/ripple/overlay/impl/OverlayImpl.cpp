@@ -538,16 +538,13 @@ OverlayImpl::onPrepare()
             {
                 if (addr.port () == 0)
                 {
+                    addr.set_port(51235);
                     JLOG(journal_.debug()) << "Port not specified (bootstrapIps) for address:" 
                                            << addr.to_string ()
                                            << ", using default port 51235";
-                    beast::IP::Endpoint addr_default(addr.address(), 51235);
-                    ips.push_back (to_string (addr_default));
                 }
-                else
-                {
-                    ips.push_back (to_string (addr));
-                }
+
+                ips.push_back (to_string (addr));
             }
 
             std::string const base ("config: ");
@@ -561,30 +558,21 @@ OverlayImpl::onPrepare()
         m_resolver.resolve (app_.config().IPS_FIXED,
             [this](
                 std::string const& name,
-                std::vector <beast::IP::Endpoint> const& addresses)
+                std::vector <beast::IP::Endpoint> const & addresses)
             {
-                std::vector <beast::IP::Endpoint> addresses_update;
-                addresses_update.reserve(addresses.size());
-                for (auto const& addr : addresses)
+                for (auto& addr : addresses)
                 {
                     if (addr.port () == 0)
                     {
+                        addr.set_port(51235);
                         JLOG(journal_.debug()) << "Port not specified (ips_fixed) for address:" 
                                                << addr.to_string ()
                                                << ", using default port 51235";
-                        beast::IP::Endpoint addr_default(addr.address(), 51235);
-                        addresses_update.push_back(addr_default);
-                    }
-                    else
-                    {
-                        addresses_update.push_back(addr);
                     }
                 }
 
-                if (!addresses_update.empty())
-                {
-                    m_peerFinder->addFixedPeer (name, addresses_update);
-                }
+                if (!addresses.empty())
+                    m_peerFinder->addFixedPeer (name, addresses);
             });
     }
 }
