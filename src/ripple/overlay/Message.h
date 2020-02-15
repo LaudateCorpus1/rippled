@@ -53,9 +53,12 @@ public:
 public:
     /** Retrieve the packed message data. */
     std::vector <uint8_t> const&
-    getBuffer () const
+    getBuffer (bool get_compressed = false) const
     {
-        return mBuffer;
+        if (get_compressed && mBufferCompressed.size() > 0)
+            return mBufferCompressed;
+        else
+            return mBuffer;
     }
 
     /** Get the traffic category */
@@ -67,6 +70,7 @@ public:
 
 private:
     std::vector <uint8_t> mBuffer;
+    std::vector <uint8_t> mBufferCompressed;
     std::size_t mCategory;
 };
 

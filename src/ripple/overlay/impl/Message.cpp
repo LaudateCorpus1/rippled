@@ -20,7 +20,9 @@
 #include <ripple/basics/safe_cast.h>
 #include <ripple/overlay/Message.h>
 #include <ripple/overlay/impl/TrafficCount.h>
+#include <ripple/overlay/Compression.h>
 #include <cstdint>
+#include <sys/file.h>
 
 namespace ripple {
 
@@ -41,18 +43,49 @@ Message::Message (::google::protobuf::Message const& message, int type)
 
     mBuffer.resize (headerBytes + messageBytes);
 
-    auto ptr = mBuffer.data();
+    auto set_header = [](uint8_t *ptr, decltype(messageBytes) messageBytes, int type, bool compressed=false,
+            uint8_t compr_algorithm=ripple::compression::Algorithm::LZ4) {
+        uint8_t compression = (compressed?0xF0:0) & (0x80 | compr_algorithm);
+        *ptr++ = static_cast<std::uint8_t>(((messageBytes >> 24) | compression) & 0xFF);
+        *ptr++ = static_cast<std::uint8_t>((messageBytes >> 16) & 0xFF);
+        *ptr++ = static_cast<std::uint8_t>((messageBytes >> 8) & 0xFF);
+        *ptr++ = static_cast<std::uint8_t>(messageBytes & 0xFF);
 
-    *ptr++ = static_cast<std::uint8_t>((messageBytes >> 24) & 0xFF);
-    *ptr++ = static_cast<std::uint8_t>((messageBytes >> 16) & 0xFF);
-    *ptr++ = static_cast<std::uint8_t>((messageBytes >> 8) & 0xFF);
-    *ptr++ = static_cast<std::uint8_t>(messageBytes & 0xFF);
+        *ptr++ = static_cast<std::uint8_t>((type >> 8) & 0xFF);
+        *ptr = static_cast<std::uint8_t> (type & 0xFF);
+    };
 
-    *ptr++ = static_cast<std::uint8_t>((type >> 8) & 0xFF);
-    *ptr++ = static_cast<std::uint8_t> (type & 0xFF);
+    set_header(mBuffer.data(), messageBytes, type);
 
     if (messageBytes != 0)
-        message.SerializeToArray(ptr, messageBytes);
+        message.SerializeToArray(mBuffer.data() + headerBytes, messageBytes);
+
+    bool compressible = (type == protocol::mtMANIFESTS || type == protocol::mtENDPOINTS ||
+            type == protocol::mtGET_LEDGER || type == protocol::mtLEDGER_DATA) &&
+                    messageBytes > 70 && messageBytes < 700000;
+
+    if (compressible)
+    {
+        ripple::compression::buffer compressed;
+        auto *payload = static_cast<void const*>(mBuffer.data() + headerBytes);
+
+        auto res = ripple::compression::compress(payload, messageBytes, compressed);
+
+        // good compression ratio?
+        auto compressedSize = std::get<1>(res);
+        double ratio = 1.0 - (double)compressedSize / (double)messageBytes;
+
+        if (ratio > 0.0)
+        {
+            auto *compressedData = std::get<0>(res);
+            mBufferCompressed.resize(headerBytes + compressedSize);
+            std::memcpy(mBufferCompressed.data() + headerBytes, compressedData, compressedSize);
+            set_header(mBufferCompressed.data(), compressedSize, type, true);
+            FILE *file = fopen("./log.txt", "a");
+            fprintf (file, "sending compressed %f\n", ratio);
+            fclose(file);
+        }
+    }
 }
 
 }

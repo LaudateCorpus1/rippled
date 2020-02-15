@@ -217,9 +217,12 @@ PeerImp::send (std::shared_ptr<Message> const& m)
     if(detaching_)
         return;
 
+    // TODO need to decide if the peer supports compression
+    bool peerSupportsCompression = true;
+
     overlay_.reportTraffic (
         safe_cast<TrafficCount::category>(m->getCategory()),
-        false, static_cast<int>(m->getBuffer().size()));
+        false, static_cast<int>(m->getBuffer(peerSupportsCompression).size()));
 
     auto sendq_size = send_queue_.size();
 
@@ -246,7 +249,7 @@ PeerImp::send (std::shared_ptr<Message> const& m)
 
     boost::asio::async_write(
         stream_,
-        boost::asio::buffer(send_queue_.front()->getBuffer()),
+        boost::asio::buffer(send_queue_.front()->getBuffer(peerSupportsCompression)),
         bind_executor(
             strand_,
             std::bind(
@@ -942,10 +945,12 @@ PeerImp::onWriteMessage (error_code ec, std::size_t bytes_transferred)
     send_queue_.pop();
     if (! send_queue_.empty())
     {
+        // TODO need to decide if the peer supports compression
+        bool peerSupportsCompression = true;
         // Timeout on writes only
         return boost::asio::async_write(
             stream_,
-            boost::asio::buffer(send_queue_.front()->getBuffer()),
+            boost::asio::buffer(send_queue_.front()->getBuffer(peerSupportsCompression)),
             bind_executor(
                 strand_,
                 std::bind(
