@@ -81,9 +81,6 @@ Message::Message (::google::protobuf::Message const& message, int type)
             mBufferCompressed.resize(headerBytes + compressedSize);
             std::memcpy(mBufferCompressed.data() + headerBytes, compressedData, compressedSize);
             set_header(mBufferCompressed.data(), compressedSize, type, true);
-            FILE *file = fopen("./log.txt", "a");
-            fprintf (file, "sending compressed %f\n", ratio);
-            fclose(file);
         }
     }
 }

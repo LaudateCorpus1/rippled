@@ -17,8 +17,8 @@
 */
 //==============================================================================
 
-#ifndef RIPPLED_COMPRESSION_H
-#define RIPPLED_COMPRESSION_H
+#ifndef RIPPLED_COMPRESSION_H_INCLUDED
+#define RIPPLED_COMPRESSION_H_INCLUDED
 
 #include <nudb/detail/buffer.hpp>
 #include <ripple/nodestore/impl/codec.h>
@@ -58,4 +58,4 @@ compress(void const *in,
 
 } // ripple
 
-#endif //RIPPLED_COMPRESSION_H
+#endif //RIPPLED_COMPRESSION_H_INCLUDED
