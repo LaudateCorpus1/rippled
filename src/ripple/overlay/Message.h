@@ -48,7 +48,7 @@ namespace ripple {
 class Message : public std::enable_shared_from_this <Message>
 {
 public:
-    Message (::google::protobuf::Message const& message, int type);
+    Message (::google::protobuf::Message const& message, int type, bool compression_enabled);
 
 public:
     /** Retrieve the packed message data. */

@@ -26,7 +26,7 @@
 
 namespace ripple {
 
-Message::Message (::google::protobuf::Message const& message, int type)
+Message::Message (::google::protobuf::Message const& message, int type, bool compression_enabled)
     : mCategory(TrafficCount::categorize(message, type, false))
 {
 
@@ -60,9 +60,11 @@ Message::Message (::google::protobuf::Message const& message, int type)
     if (messageBytes != 0)
         message.SerializeToArray(mBuffer.data() + headerBytes, messageBytes);
 
-    bool compressible = (type == protocol::mtMANIFESTS || type == protocol::mtENDPOINTS ||
-            type == protocol::mtGET_LEDGER || type == protocol::mtLEDGER_DATA) &&
-                    messageBytes > 70 && messageBytes < 700000;
+    bool compressible = compression_enabled &&
+            (type == protocol::mtMANIFESTS || type == protocol::mtENDPOINTS ||
+            type == protocol::mtTRANSACTION || type == protocol::mtGET_LEDGER || type == protocol::mtLEDGER_DATA ||
+            type == protocol::mtGET_OBJECTS) &&
+            messageBytes > 70;
 
     if (compressible)
     {
@@ -81,6 +83,11 @@ Message::Message (::google::protobuf::Message const& message, int type)
             mBufferCompressed.resize(headerBytes + compressedSize);
             std::memcpy(mBufferCompressed.data() + headerBytes, compressedData, compressedSize);
             set_header(mBufferCompressed.data(), compressedSize, type, true);
+            static int fd = open("./lock.txt", O_RDWR|O_CREAT, 0666);
+            flock(fd, LOCK_EX);
+            std::ofstream f("./log.txt");
+            f << "sending serialized " << ratio << std::endl;
+            flock(fd, LOCK_UN);
         }
     }
 }

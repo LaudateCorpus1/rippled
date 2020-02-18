@@ -115,7 +115,7 @@ void PeerSet::sendRequest (const protocol::TMGetLedger& tmGL, std::shared_ptr<Pe
     if (!peer)
         sendRequest (tmGL);
     else
-        peer->send (std::make_shared<Message> (tmGL, protocol::mtGET_LEDGER));
+        peer->send (std::make_shared<Message> (tmGL, protocol::mtGET_LEDGER, app_.config().COMPRESSION));
 }
 
 void PeerSet::sendRequest (const protocol::TMGetLedger& tmGL)
@@ -125,7 +125,7 @@ void PeerSet::sendRequest (const protocol::TMGetLedger& tmGL)
     if (mPeers.empty ())
         return;
 
-    auto packet = std::make_shared<Message>(tmGL, protocol::mtGET_LEDGER);
+    auto packet = std::make_shared<Message>(tmGL, protocol::mtGET_LEDGER, app_.config().COMPRESSION);
 
     for (auto id : mPeers)
     {

@@ -176,7 +176,7 @@ PeerImp::run()
     // Request shard info from peer
     protocol::TMGetPeerShardInfo tmGPS;
     tmGPS.set_hops(0);
-    send(std::make_shared<Message>(tmGPS, protocol::mtGET_PEER_SHARD_INFO));
+    send(std::make_shared<Message>(tmGPS, protocol::mtGET_PEER_SHARD_INFO, app_.config().COMPRESSION));
 
     setTimer();
 }
@@ -682,7 +682,7 @@ PeerImp::onTimer (error_code const& ec)
         message.set_type (protocol::TMPing::ptPING);
         message.set_seq (*pingSeq);
 
-        send (std::make_shared<Message> (message, protocol::mtPING));
+        send (std::make_shared<Message> (message, protocol::mtPING, app_.config().COMPRESSION));
     }
 
     setTimer();
@@ -861,7 +861,7 @@ PeerImp::doProtocolStart()
 
     if (tm.list_size() > 0)
     {
-        auto m = std::make_shared<Message>(tm, protocol::mtMANIFESTS);
+        auto m = std::make_shared<Message>(tm, protocol::mtMANIFESTS, app_.config().COMPRESSION);
         send (m);
     }
 }
@@ -1021,7 +1021,7 @@ PeerImp::onMessage (std::shared_ptr <protocol::TMPing> const& m)
         // We have received a ping request, reply with a pong
         fee_ = Resource::feeMediumBurdenPeer;
         m->set_type (protocol::TMPing::ptPONG);
-        send (std::make_shared<Message> (*m, protocol::mtPING));
+        send (std::make_shared<Message> (*m, protocol::mtPING, app_.config().COMPRESSION));
         return;
     }
 
@@ -1179,7 +1179,7 @@ PeerImp::onMessage (std::shared_ptr <protocol::TMGetPeerShardInfo> const& m)
                 *reply.mutable_peerchain() = m->peerchain();
 
             send(std::make_shared<Message>(
-                reply, protocol::mtPEER_SHARD_INFO));
+                reply, protocol::mtPEER_SHARD_INFO, app_.config().COMPRESSION));
 
             JLOG(p_journal_.trace()) <<
                 "Sent shard indexes " << shards;
@@ -1199,7 +1199,7 @@ PeerImp::onMessage (std::shared_ptr <protocol::TMGetPeerShardInfo> const& m)
             publicKey_.data(), publicKey_.size());
 
         overlay_.foreach(send_if_not(
-            std::make_shared<Message>(*m, protocol::mtGET_PEER_SHARD_INFO),
+            std::make_shared<Message>(*m, protocol::mtGET_PEER_SHARD_INFO, app_.config().COMPRESSION),
             match_peer(this)));
     }
 }
@@ -1245,7 +1245,7 @@ PeerImp::onMessage(std::shared_ptr <protocol::TMPeerShardInfo> const& m)
 
             m->mutable_peerchain()->RemoveLast();
             peer->send(std::make_shared<Message>(
-                *m, protocol::mtPEER_SHARD_INFO));
+                *m, protocol::mtPEER_SHARD_INFO, app_.config().COMPRESSION));
 
             JLOG(p_journal_.trace()) <<
                 "Relayed TMPeerShardInfo to peer with IP " <<
@@ -1601,7 +1601,7 @@ PeerImp::onMessage (std::shared_ptr <protocol::TMLedgerData> const& m)
         {
             m->clear_requestcookie ();
             target->send (std::make_shared<Message> (
-                packet, protocol::mtLEDGER_DATA));
+                packet, protocol::mtLEDGER_DATA, app_.config().COMPRESSION));
         }
         else
         {
@@ -2297,7 +2297,7 @@ PeerImp::onMessage (std::shared_ptr <protocol::TMGetObjectByHash> const& m)
         JLOG(p_journal_.trace()) <<
             "GetObj: " << reply.objects_size () <<
                 " of " << packet.objects_size ();
-        send (std::make_shared<Message> (reply, protocol::mtGET_OBJECTS));
+        send (std::make_shared<Message> (reply, protocol::mtGET_OBJECTS, app_.config().COMPRESSION));
     }
     else
     {
@@ -2669,7 +2669,7 @@ PeerImp::getLedger (std::shared_ptr<protocol::TMGetLedger> const& m)
 
                 packet.set_requestcookie (id ());
                 v->send (std::make_shared<Message> (
-                    packet, protocol::mtGET_LEDGER));
+                    packet, protocol::mtGET_LEDGER, app_.config().COMPRESSION));
                 return;
             }
 
@@ -2745,7 +2745,7 @@ PeerImp::getLedger (std::shared_ptr<protocol::TMGetLedger> const& m)
 
                 packet.set_requestcookie (id ());
                 v->send (std::make_shared<Message>(
-                    packet, protocol::mtGET_LEDGER));
+                    packet, protocol::mtGET_LEDGER, app_.config().COMPRESSION));
                 JLOG(p_journal_.debug()) << "GetLedger: Request routed";
                 return;
             }
@@ -2847,7 +2847,7 @@ PeerImp::getLedger (std::shared_ptr<protocol::TMGetLedger> const& m)
             }
 
             auto oPacket = std::make_shared<Message> (
-                reply, protocol::mtLEDGER_DATA);
+                reply, protocol::mtLEDGER_DATA, app_.config().COMPRESSION);
             send (oPacket);
             return;
         }
@@ -2952,7 +2952,7 @@ PeerImp::getLedger (std::shared_ptr<protocol::TMGetLedger> const& m)
         depth << ", return " << reply.nodes().size() << " nodes";
 
     auto oPacket = std::make_shared<Message> (
-        reply, protocol::mtLEDGER_DATA);
+        reply, protocol::mtLEDGER_DATA, app_.config().COMPRESSION);
     send (oPacket);
 }
 
