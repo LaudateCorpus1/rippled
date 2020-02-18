@@ -632,7 +632,7 @@ PeerImp::sendEndpoints (FwdIt first, FwdIt last)
     }
     tm.set_version (2);
 
-    send (std::make_shared <Message> (tm, protocol::mtENDPOINTS, app_.config().COMPRESSION));
+    send (std::make_shared <Message> (tm, protocol::mtENDPOINTS, app_));
 }
 
 }

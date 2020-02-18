@@ -30,6 +30,8 @@
 #include <memory>
 #include <type_traits>
 
+class Application;
+
 namespace ripple {
 
 // VFALCO NOTE If we forward declare Message and write out shared_ptr
@@ -48,7 +50,7 @@ namespace ripple {
 class Message : public std::enable_shared_from_this <Message>
 {
 public:
-    Message (::google::protobuf::Message const& message, int type, bool compression_enabled);
+    Message (::google::protobuf::Message const& message, int type, Application &app);
 
 public:
     /** Retrieve the packed message data. */

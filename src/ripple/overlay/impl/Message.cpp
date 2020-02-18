@@ -21,12 +21,15 @@
 #include <ripple/overlay/Message.h>
 #include <ripple/overlay/impl/TrafficCount.h>
 #include <ripple/overlay/Compression.h>
+#include <ripple/app/main/Application.h>
+#include <ripple/app/ledger/LedgerMaster.h>
+#include <ripple/protocol/Feature.h>
 #include <cstdint>
 #include <sys/file.h>
 
 namespace ripple {
 
-Message::Message (::google::protobuf::Message const& message, int type, bool compression_enabled)
+Message::Message (::google::protobuf::Message const& message, int type, Application& app)
     : mCategory(TrafficCount::categorize(message, type, false))
 {
 
@@ -37,6 +40,9 @@ Message::Message (::google::protobuf::Message const& message, int type, bool com
 #endif
 
     assert (messageBytes != 0);
+
+    bool compression_enabled = app.config().COMPRESSION &&
+            app.getLedgerMaster().getValidatedRules().enabled(featureProtocolCompression);
 
     /** Number of bytes in a message header. */
     std::size_t constexpr headerBytes = 6;
@@ -83,11 +89,6 @@ Message::Message (::google::protobuf::Message const& message, int type, bool com
             mBufferCompressed.resize(headerBytes + compressedSize);
             std::memcpy(mBufferCompressed.data() + headerBytes, compressedData, compressedSize);
             set_header(mBufferCompressed.data(), compressedSize, type, true);
-            static int fd = open("./lock.txt", O_RDWR|O_CREAT, 0666);
-            flock(fd, LOCK_EX);
-            std::ofstream f("./log.txt");
-            f << "sending serialized " << ratio << std::endl;
-            flock(fd, LOCK_UN);
         }
     }
 }

@@ -586,7 +586,7 @@ void InboundLedger::trigger (std::shared_ptr<Peer> const& peer, TriggerReason re
                 }
 
                 auto packet = std::make_shared <Message> (
-                    tmBH, protocol::mtGET_OBJECTS, app_.config().COMPRESSION);
+                    tmBH, protocol::mtGET_OBJECTS, app_);
 
                 for (auto id : mPeers)
                 {
