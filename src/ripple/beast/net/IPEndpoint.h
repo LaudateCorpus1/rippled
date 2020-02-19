@@ -108,11 +108,11 @@ public:
 private:
     friend class ripple::OverlayImpl;
     /** Updates the port */
-    void set_port (Port port) const
+    void set_port (Port port)
     { m_port = port; }
 
     Address m_addr;
-    mutable Port m_port;
+    Port m_port;
 };
 
 //------------------------------------------------------------------------------

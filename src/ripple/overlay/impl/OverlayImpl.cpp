@@ -530,11 +530,11 @@ OverlayImpl::onPrepare()
 
     m_resolver.resolve (bootstrapIps,
         [this](std::string const& name,
-            std::vector <beast::IP::Endpoint> const& addresses)
+            std::vector <beast::IP::Endpoint>& addresses)
         {
             std::vector <std::string> ips;
             ips.reserve(addresses.size());
-            for (auto const& addr : addresses)
+            for (auto& addr : addresses)
             {
                 if (addr.port () == 0)
                 {
@@ -558,7 +558,7 @@ OverlayImpl::onPrepare()
         m_resolver.resolve (app_.config().IPS_FIXED,
             [this](
                 std::string const& name,
-                std::vector <beast::IP::Endpoint> const & addresses)
+                std::vector <beast::IP::Endpoint>& addresses)
             {
                 for (auto& addr : addresses)
                 {
