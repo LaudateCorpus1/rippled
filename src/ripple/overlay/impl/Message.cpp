@@ -22,10 +22,7 @@
 #include <ripple/overlay/impl/TrafficCount.h>
 #include <ripple/overlay/Compression.h>
 #include <ripple/app/main/Application.h>
-#include <ripple/app/ledger/LedgerMaster.h>
-#include <ripple/protocol/Feature.h>
 #include <cstdint>
-#include <sys/file.h>
 
 namespace ripple {
 
@@ -40,9 +37,6 @@ Message::Message (::google::protobuf::Message const& message, int type, Applicat
 #endif
 
     assert (messageBytes != 0);
-
-    bool compression_enabled = app.config().COMPRESSION &&
-            app.getLedgerMaster().getValidatedRules().enabled(featureProtocolCompression);
 
     /** Number of bytes in a message header. */
     std::size_t constexpr headerBytes = 6;
@@ -66,7 +60,7 @@ Message::Message (::google::protobuf::Message const& message, int type, Applicat
     if (messageBytes != 0)
         message.SerializeToArray(mBuffer.data() + headerBytes, messageBytes);
 
-    bool compressible = compression_enabled &&
+    bool compressible = app.compressionEnabled() &&
             (type == protocol::mtMANIFESTS || type == protocol::mtENDPOINTS ||
             type == protocol::mtTRANSACTION || type == protocol::mtGET_LEDGER || type == protocol::mtLEDGER_DATA ||
             type == protocol::mtGET_OBJECTS) &&

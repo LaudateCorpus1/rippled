@@ -193,6 +193,8 @@ public:
     /** Ensure that a newly-started validator does not sign proposals older
      * than the last ledger it persisted. */
     virtual LedgerIndex getMaxDisallowedLedger() = 0;
+
+    virtual bool compressionEnabled() = 0;
 };
 
 std::unique_ptr <Application>

@@ -201,6 +201,8 @@ private:
     std::mutex mutable shardInfoMutex_;
     hash_map<PublicKey, ShardInfo> shardInfo_;
 
+    bool compressionEnabled_ = false;
+
     friend class OverlayImpl;
 
     class Metrics {
@@ -600,6 +602,7 @@ PeerImp::PeerImp (Application& app, std::unique_ptr<stream_type>&& stream_ptr,
     , slot_ (std::move(slot))
     , response_(std::move(response))
     , headers_(response_)
+    , compressionEnabled_(headers_["Transfer-Encoding"] == "lz4")
 {
     read_buffer_.commit (boost::asio::buffer_copy(read_buffer_.prepare(
         boost::asio::buffer_size(buffers)), buffers));

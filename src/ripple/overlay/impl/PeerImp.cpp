@@ -86,6 +86,7 @@ PeerImp::PeerImp (Application& app, id_t id,
     , slot_ (slot)
     , request_(std::move(request))
     , headers_(request_)
+    , compressionEnabled_(headers_["Request-Encoding"] == "lz4")
 {
 }
 
@@ -217,12 +218,9 @@ PeerImp::send (std::shared_ptr<Message> const& m)
     if(detaching_)
         return;
 
-    // TODO need to decide if the peer supports compression
-    bool peerSupportsCompression = true;
-
     overlay_.reportTraffic (
         safe_cast<TrafficCount::category>(m->getCategory()),
-        false, static_cast<int>(m->getBuffer(peerSupportsCompression).size()));
+        false, static_cast<int>(m->getBuffer(compressionEnabled_).size()));
 
     auto sendq_size = send_queue_.size();
 
@@ -249,7 +247,7 @@ PeerImp::send (std::shared_ptr<Message> const& m)
 
     boost::asio::async_write(
         stream_,
-        boost::asio::buffer(send_queue_.front()->getBuffer(peerSupportsCompression)),
+        boost::asio::buffer(send_queue_.front()->getBuffer(compressionEnabled_)),
         bind_executor(
             strand_,
             std::bind(
@@ -760,6 +758,8 @@ PeerImp::makeResponse (bool crawl,
     resp.insert("Connect-As", "Peer");
     resp.insert("Server", BuildInfo::getFullVersionString());
     resp.insert("Crawl", crawl ? "public" : "private");
+    if (req["Accept-Encoding"] == "lz4" && app_.compressionEnabled())
+        resp.insert("Transfer-Encoding", "lz4");
 
     buildHandshake(resp, sharedValue, overlay_.setup().networkID,
         overlay_.setup().public_ip, remote_ip, app_);
@@ -945,12 +945,10 @@ PeerImp::onWriteMessage (error_code ec, std::size_t bytes_transferred)
     send_queue_.pop();
     if (! send_queue_.empty())
     {
-        // TODO need to decide if the peer supports compression
-        bool peerSupportsCompression = true;
         // Timeout on writes only
         return boost::asio::async_write(
             stream_,
-            boost::asio::buffer(send_queue_.front()->getBuffer(peerSupportsCompression)),
+            boost::asio::buffer(send_queue_.front()->getBuffer(compressionEnabled_)),
             bind_executor(
                 strand_,
                 std::bind(
