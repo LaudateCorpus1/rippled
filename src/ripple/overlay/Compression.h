@@ -28,7 +28,7 @@ namespace ripple {
 namespace compression {
 
 enum Algorithm : uint8_t {
-    LZ4 = 0x0
+    LZ4 = 0x01
 };
 
 using buffer = nudb::detail::buffer;

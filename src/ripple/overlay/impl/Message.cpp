@@ -45,7 +45,7 @@ Message::Message (::google::protobuf::Message const& message, int type, bool com
 
     auto set_header = [](uint8_t *ptr, decltype(messageBytes) messageBytes, int type, bool compressed=false,
             uint8_t compr_algorithm=ripple::compression::Algorithm::LZ4) {
-        uint8_t compression = (compressed?0xF0:0) & (0x80 | compr_algorithm);
+        uint8_t compression = (compressed?0xF0:0) & (0x80 | (compr_algorithm << 4));
         *ptr++ = static_cast<std::uint8_t>(((messageBytes >> 24) | compression) & 0xFF);
         *ptr++ = static_cast<std::uint8_t>((messageBytes >> 16) & 0xFF);
         *ptr++ = static_cast<std::uint8_t>((messageBytes >> 8) & 0xFF);
@@ -62,8 +62,8 @@ Message::Message (::google::protobuf::Message const& message, int type, bool com
 
     bool compressible = compression_enabled &&
             (type == protocol::mtMANIFESTS || type == protocol::mtENDPOINTS ||
-            type == protocol::mtTRANSACTION || type == protocol::mtGET_LEDGER || type == protocol::mtLEDGER_DATA ||
-            type == protocol::mtGET_OBJECTS) &&
+             type == protocol::mtTRANSACTION || type == protocol::mtGET_LEDGER || type == protocol::mtLEDGER_DATA ||
+             type == protocol::mtGET_OBJECTS || type == protocol::mtVALIDATORLIST) &&
             messageBytes > 70;
 
     if (compressible)
@@ -74,7 +74,7 @@ Message::Message (::google::protobuf::Message const& message, int type, bool com
         auto res = ripple::compression::compress(payload, messageBytes, compressed);
 
         // good compression ratio?
-        auto compressedSize = std::get<1>(res);
+        decltype(messageBytes) compressedSize = std::get<1>(res);
         double ratio = 1.0 - (double)compressedSize / (double)messageBytes;
 
         if (ratio > 0.0)
