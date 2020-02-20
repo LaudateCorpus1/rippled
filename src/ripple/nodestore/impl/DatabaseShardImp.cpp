@@ -588,7 +588,7 @@ DatabaseShardImp::setStored(std::shared_ptr<Ledger const> const& ledger)
         message.set_nodepubkey(publicKey.data(), publicKey.size());
         message.set_shardindexes(std::to_string(shardIndex));
         app_.overlay().foreach(send_always(
-            std::make_shared<Message>(message, protocol::mtPEER_SHARD_INFO, app_)));
+            std::make_shared<Message>(message, protocol::mtPEER_SHARD_INFO, app_.config().COMPRESSION)));
     }
 
     setFileStats(lock);

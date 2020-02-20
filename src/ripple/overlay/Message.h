@@ -50,12 +50,12 @@ namespace ripple {
 class Message : public std::enable_shared_from_this <Message>
 {
 public:
-    Message (::google::protobuf::Message const& message, int type, Application &app);
+    Message (::google::protobuf::Message const& message, int type, bool compression_enabled);
 
 public:
     /** Retrieve the packed message data. */
     std::vector <uint8_t> const&
-    getBuffer (bool get_compressed = false) const
+    getBuffer (bool get_compressed) const
     {
         if (get_compressed && mBufferCompressed.size() > 0)
             return mBufferCompressed;

@@ -1277,12 +1277,6 @@ public:
         return maxDisallowedLedger_;
     }
 
-    bool compressionEnabled() override
-    {
-        return getLedgerMaster().getValidatedRules().enabled(featureProtocolCompression) &&
-            config().COMPRESSION;
-    }
-
 
 private:
     // For a newly-started validator, this is the greatest persisted ledger

@@ -163,7 +163,7 @@ RCLConsensus::Adaptor::share(RCLCxTx const& tx)
         msg.set_receivetimestamp(
             app_.timeKeeper().now().time_since_epoch().count());
         app_.overlay().foreach (send_always(
-            std::make_shared<Message>(msg, protocol::mtTRANSACTION, app_)));
+            std::make_shared<Message>(msg, protocol::mtTRANSACTION, app_.config().COMPRESSION)));
     }
     else
     {
@@ -700,7 +700,7 @@ RCLConsensus::Adaptor::notify(
     s.set_lastseq(uMax);
     app_.overlay ().foreach (send_always (
         std::make_shared <Message> (
-            s, protocol::mtSTATUS_CHANGE, app_)));
+            s, protocol::mtSTATUS_CHANGE, app_.config().COMPRESSION)));
     JLOG (j_.trace()) << "send status change to peer";
 }
 

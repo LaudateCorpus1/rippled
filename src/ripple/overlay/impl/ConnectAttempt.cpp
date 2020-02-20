@@ -197,7 +197,7 @@ ConnectAttempt::onHandshake (error_code ec)
     if (! sharedValue)
         return close(); // makeSharedValue logs
 
-    req_ = makeRequest(!overlay_.peerFinder().config().peerPrivate, app_.compressionEnabled());
+    req_ = makeRequest(!overlay_.peerFinder().config().peerPrivate, app_.config().COMPRESSION);
 
     buildHandshake(req_, *sharedValue, overlay_.setup().networkID,
         overlay_.setup().public_ip, remote_endpoint_.address(), app_);

@@ -26,7 +26,7 @@
 
 namespace ripple {
 
-Message::Message (::google::protobuf::Message const& message, int type, Application& app)
+Message::Message (::google::protobuf::Message const& message, int type, bool compression_enabled)
     : mCategory(TrafficCount::categorize(message, type, false))
 {
 
@@ -60,7 +60,7 @@ Message::Message (::google::protobuf::Message const& message, int type, Applicat
     if (messageBytes != 0)
         message.SerializeToArray(mBuffer.data() + headerBytes, messageBytes);
 
-    bool compressible = app.compressionEnabled() &&
+    bool compressible = compression_enabled &&
             (type == protocol::mtMANIFESTS || type == protocol::mtENDPOINTS ||
             type == protocol::mtTRANSACTION || type == protocol::mtGET_LEDGER || type == protocol::mtLEDGER_DATA ||
             type == protocol::mtGET_OBJECTS) &&

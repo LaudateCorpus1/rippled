@@ -151,7 +151,7 @@ OpenLedger::accept(Application& app, Rules const& rules,
             msg.set_receivetimestamp(
                 app.timeKeeper().now().time_since_epoch().count());
             app.overlay().foreach(send_if_not(
-                std::make_shared<Message>(msg, protocol::mtTRANSACTION, app),
+                std::make_shared<Message>(msg, protocol::mtTRANSACTION, app.config().COMPRESSION),
                 peer_in_set(*toSkip)));
         }
     }
