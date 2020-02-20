@@ -239,6 +239,8 @@ public:
         @param hashRouter HashRouter object which will determine which
             peers not to send to
 
+        @param compressionEnabled is true if compression is enabled in rippled.cfg
+
         @return `ListDisposition::accepted`, plus some of the publisher
             information, if list was successfully applied
 
@@ -255,7 +257,8 @@ public:
         std::string siteUri,
         uint256 const& hash,
         Overlay& overlay,
-        HashRouter& hashRouter);
+        HashRouter& hashRouter,
+        bool compressionEnabled);
 
     /** Apply published list of public keys
 

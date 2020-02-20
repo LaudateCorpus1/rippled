@@ -838,7 +838,7 @@ PeerImp::doProtocolStart()
                     strHex(pubKey) << " with sequence " <<
                     sequence << " to " <<
                     remote_address_.to_string() << " (" << id_ << ")";
-                auto m = std::make_shared<Message>(vl, protocol::mtVALIDATORLIST);
+                auto m = std::make_shared<Message>(vl, protocol::mtVALIDATORLIST, app_.config().COMPRESSION);
                 send(m);
                 // Don't send it next time.
                 app_.getHashRouter().addSuppressionPeer(hash, id_);
@@ -2051,7 +2051,8 @@ PeerImp::onMessage (std::shared_ptr <protocol::TMValidatorList> const& m)
             remote_address_.to_string(),
             hash,
             app_.overlay(),
-            app_.getHashRouter());
+            app_.getHashRouter(),
+            app_.config().COMPRESSION);
         auto const disp = applyResult.disposition;
 
         JLOG(p_journal_.debug()) << "Processed validator list from " <<

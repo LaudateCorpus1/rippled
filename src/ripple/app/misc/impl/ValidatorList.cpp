@@ -249,7 +249,8 @@ ValidatorList::applyListAndBroadcast(
     std::string siteUri,
     uint256 const& hash,
     Overlay& overlay,
-    HashRouter& hashRouter)
+    HashRouter& hashRouter,
+    bool compressionEnabled)
 {
     auto const result = applyList(manifest, blob, signature,
         version, std::move(siteUri), hash);
@@ -277,7 +278,7 @@ ValidatorList::applyListAndBroadcast(
             // Can't use overlay.foreach here because we need to modify
             // the peer, and foreach provides a const&
             auto message =
-                std::make_shared<Message>(msg, protocol::mtVALIDATORLIST);
+                std::make_shared<Message>(msg, protocol::mtVALIDATORLIST, compressionEnabled);
             for (auto& peer : overlay.getActivePeers())
             {
                 if (toSkip->count(peer->id()) == 0 &&
