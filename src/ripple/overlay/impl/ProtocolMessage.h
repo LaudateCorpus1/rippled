@@ -114,8 +114,8 @@ boost::optional<MessageHeader> parseMessageHeader(
     auto iter = buffers_begin(bufs);
 
     MessageHeader hdr;
-    hdr.compressed = (*iter & 0x90) == 0x80;
-    hdr.algorithm = (*iter & 0x60) >> 5;
+    hdr.compressed = (*iter & 0x80) == 0x80;
+    hdr.algorithm = (*iter & 0x70) >> 4;
 
     // Check valid header
     if ((*iter & 0xFC) == 0 || hdr.compressed)
