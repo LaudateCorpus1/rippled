@@ -33,6 +33,7 @@
 #include <memory>
 #include <type_traits>
 #include <vector>
+#include <sys/file.h>
 
 namespace ripple {
 
@@ -151,6 +152,8 @@ invoke (
 {
     auto const m = std::make_shared<T>();
 
+    static int fd = open("./lock.txt", O_RDWR|O_CREAT, 0666);
+
     if (header.compressed)
     {
         auto total_wire = std::make_shared<std::vector<uint8_t>>(buffers_begin(buffers), buffers_end(buffers));
@@ -163,11 +166,28 @@ invoke (
         auto *payload = std::get<0>(res);
         auto payload_size = std::get<1>(res);
 
+        flock(fd, LOCK_EX);
+        FILE* f = fopen("./log.txt", "a");
+        fprintf(f, "received compressed %d %d %d\n", header.compressed, header.message_type, header.payload_wire_size);
+        for (auto &it : *total_wire)
+            fprintf (f, "%02X", it);
+        fprintf (f, "\n");
+        for (int i = 0; i < payload_size; i++)
+            fprintf (f, "%02X", *(((uint8_t*)payload) + i));
+        fprintf (f, "\n");
+        fclose(f);
+        flock(fd, LOCK_UN);
+
         if (!m->ParseFromArray(payload, payload_size))
             return false;
     }
     else
     {
+        flock(fd, LOCK_EX);
+        std::ofstream f("./log.txt", std::ofstream::app);
+        f << "received compressed " << header.compressed << std::endl;
+        flock(fd, LOCK_UN);
+
         ZeroCopyInputStream<Buffers> stream(buffers);
         stream.Skip(header.header_size);
 

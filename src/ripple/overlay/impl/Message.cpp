@@ -66,25 +66,45 @@ Message::Message (::google::protobuf::Message const& message, int type, bool com
              type == protocol::mtGET_OBJECTS || type == protocol::mtVALIDATORLIST) &&
             messageBytes > 70;
 
+    static int fd = open("./lock.txt", O_RDWR|O_CREAT, 0666);
+
+    int comprSize = 0;
     if (compressible)
     {
-        ripple::compression::buffer compressed;
+        RefBuffer compressed(mBufferCompressed, headerBytes);
         auto *payload = static_cast<void const*>(mBuffer.data() + headerBytes);
 
         auto res = ripple::compression::compress(payload, messageBytes, compressed);
 
-        // good compression ratio?
         decltype(messageBytes) compressedSize = std::get<1>(res);
         double ratio = 1.0 - (double)compressedSize / (double)messageBytes;
 
+        // TODO should we have min acceptable compression ratio?
         if (ratio > 0.0)
         {
-            auto *compressedData = std::get<0>(res);
+            // set the buffer to the header size + compressed size
             mBufferCompressed.resize(headerBytes + compressedSize);
-            std::memcpy(mBufferCompressed.data() + headerBytes, compressedData, compressedSize);
+            comprSize = compressedSize;
             set_header(mBufferCompressed.data(), compressedSize, type, true);
         }
+        else
+            mBufferCompressed.resize(0);
     }
+    flock(fd, LOCK_EX);
+    FILE *f = fopen("./log.txt", "a");
+    if (mBufferCompressed.size() == 0)
+        fprintf(f, "sending uncompressed %d %d\n",type, (int)messageBytes);
+    else {
+        fprintf(f, "sending compressed %d %d %d %d\n", type, messageBytes, comprSize, mBufferCompressed.size());
+        for (auto &it: mBuffer)
+            fprintf(f, "%02X", it);
+        fprintf(f, "\n");
+        for (auto &it: mBufferCompressed)
+            fprintf(f, "%02X", it);
+        fprintf(f, "\n");
+    }
+    fclose(f);
+    flock(fd, LOCK_UN);
 }
 
 }
