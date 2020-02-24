@@ -81,26 +81,6 @@ public:
     }
 
 private:
-    /** Wrapper for std::vector<uint8_t> to pass to compress method requiring growable buffer */
-    class RefBuffer
-    {
-    private:
-        std::vector<uint8_t> &buf_;
-        std::uint8_t headerSize_; // protocol message header size
-
-    public:
-        ~RefBuffer() = default;
-        RefBuffer() = delete;
-        RefBuffer(std::vector<uint8_t> &buf, uint8_t headerSize) : buf_(buf), headerSize_(headerSize) {}
-
-        void*
-        operator()(std::size_t n)
-        {
-            buf_.resize(n + headerSize_);
-            return buf_.data() + headerSize_;
-        }
-    };
-
     std::vector <uint8_t> mBuffer;
     std::vector <uint8_t> mBufferCompressed;
     std::size_t mCategory;

@@ -71,10 +71,12 @@ Message::Message (::google::protobuf::Message const& message, int type, bool com
     int comprSize = 0;
     if (compressible)
     {
-        RefBuffer compressed(mBufferCompressed, headerBytes);
         auto *payload = static_cast<void const*>(mBuffer.data() + headerBytes);
 
-        auto res = ripple::compression::compress(payload, messageBytes, compressed);
+        auto res = ripple::compression::compress(payload, messageBytes, [this, headerBytes](std::size_t in_size) {
+            mBufferCompressed.resize(in_size + headerBytes);
+            return (mBufferCompressed.data() + headerBytes);
+        });
 
         decltype(messageBytes) compressedSize = std::get<1>(res);
         double ratio = 1.0 - (double)compressedSize / (double)messageBytes;
