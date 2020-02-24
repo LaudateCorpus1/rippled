@@ -157,11 +157,15 @@ invoke (
     if (header.compressed)
     {
         auto total_wire = std::make_shared<std::vector<uint8_t>>(buffers_begin(buffers), buffers_end(buffers));
-        ripple::compression::buffer uncompressed;
+        std::vector<uint8_t> uncompressed;
         auto compressed_payload_wire = total_wire->data() + header.header_size;
 
-        auto res = ripple::compression::decompress(compressed_payload_wire, header.payload_wire_size, uncompressed,
-                header.algorithm);
+        auto res = ripple::compression::decompress(compressed_payload_wire, header.payload_wire_size,
+                [&uncompressed](std::size_t size)
+            {
+                uncompressed.resize(size);
+                return uncompressed.data();
+            }, header.algorithm);
 
         auto *payload = std::get<0>(res);
         auto payload_size = std::get<1>(res);

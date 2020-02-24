@@ -31,8 +31,6 @@ enum Algorithm : uint8_t {
     LZ4 = 0x01
 };
 
-using buffer = nudb::detail::buffer;
-
 template<class BufferFactory>
 std::pair<void const *, std::size_t>
 decompress(void const *in,
