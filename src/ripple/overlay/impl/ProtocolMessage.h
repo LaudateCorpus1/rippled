@@ -156,9 +156,22 @@ invoke (
 
     if (header.compressed)
     {
-        auto total_wire = std::vector<uint8_t>(buffers_begin(buffers), buffers_end(buffers));
+        uint8_t* compressed_payload_wire = nullptr;
+        auto one_buffer = buffers.begin();
+        std::vector<uint8_t> contiguous_buffer;
+
+        if (boost::asio::buffer_size(*one_buffer) >= header.total_wire_size)
+        {
+            compressed_payload_wire = boost::asio::buffer_cast<uint8_t*>(*one_buffer) + header.header_size;
+        }
+        else
+        {
+            contiguous_buffer.insert(contiguous_buffer.begin(), buffers_begin(buffers),
+                    buffers_begin(buffers) + header.total_wire_size);
+            compressed_payload_wire = contiguous_buffer.data() + header.header_size;
+        }
+
         std::vector<uint8_t> uncompressed;
-        auto compressed_payload_wire = total_wire.data() + header.header_size;
 
         auto res = ripple::compression::decompress(compressed_payload_wire, header.payload_wire_size,
                 [&uncompressed](std::size_t size)
@@ -172,9 +185,12 @@ invoke (
 
         flock(fd, LOCK_EX);
         FILE* f = fopen("./log.txt", "a");
-        fprintf(f, "received compressed %d %d %d\n", header.compressed, header.message_type, header.payload_wire_size);
-        for (auto &it : total_wire)
-            fprintf (f, "%02X", it);
+        fprintf(f, "received compressed %d %d %d: buffers: ", header.compressed, header.message_type, header.payload_wire_size);
+        for (auto b : buffers)
+            fprintf (f, "%d ", boost::asio::buffer_size(b));
+        fprintf (f,"\n");
+        for (int i = 0; i < header.payload_wire_size; i++)
+            fprintf (f, "%02X", compressed_payload_wire[i]);
         fprintf (f, "\n");
         for (int i = 0; i < payload_size; i++)
             fprintf (f, "%02X", *(((uint8_t*)payload) + i));
@@ -189,7 +205,10 @@ invoke (
     {
         flock(fd, LOCK_EX);
         std::ofstream f("./log.txt", std::ofstream::app);
-        f << "received compressed " << header.compressed << std::endl;
+        f << "received uncompressed " << std::endl;
+        for (auto b : buffers)
+            f << boost::asio::buffer_size(b) << " ";
+        f << std::endl;
         flock(fd, LOCK_UN);
 
         ZeroCopyInputStream<Buffers> stream(buffers);
