@@ -156,9 +156,9 @@ invoke (
 
     if (header.compressed)
     {
-        auto total_wire = std::make_shared<std::vector<uint8_t>>(buffers_begin(buffers), buffers_end(buffers));
+        auto total_wire = std::vector<uint8_t>(buffers_begin(buffers), buffers_end(buffers));
         std::vector<uint8_t> uncompressed;
-        auto compressed_payload_wire = total_wire->data() + header.header_size;
+        auto compressed_payload_wire = total_wire.data() + header.header_size;
 
         auto res = ripple::compression::decompress(compressed_payload_wire, header.payload_wire_size,
                 [&uncompressed](std::size_t size)
@@ -173,7 +173,7 @@ invoke (
         flock(fd, LOCK_EX);
         FILE* f = fopen("./log.txt", "a");
         fprintf(f, "received compressed %d %d %d\n", header.compressed, header.message_type, header.payload_wire_size);
-        for (auto &it : *total_wire)
+        for (auto &it : total_wire)
             fprintf (f, "%02X", it);
         fprintf (f, "\n");
         for (int i = 0; i < payload_size; i++)
