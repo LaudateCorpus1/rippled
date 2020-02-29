@@ -20,8 +20,8 @@
 #ifndef RIPPLED_COMPRESSION_H_INCLUDED
 #define RIPPLED_COMPRESSION_H_INCLUDED
 
-#include <nudb/detail/buffer.hpp>
-#include <ripple/nodestore/impl/codec.h>
+#include <ripple/basics/CompressionAlgorithms.h>
+#include <lz4frame.h>
 
 namespace ripple {
 
@@ -31,12 +31,12 @@ enum Algorithm : uint8_t {
     LZ4 = 0x01
 };
 
-template<class BufferFactory>
+template<typename BufferIn, typename BufferFactory>
 std::pair<void const *, std::size_t>
-decompress(void const *in,
+decompress(BufferIn&& in,
            std::size_t in_size, BufferFactory &&bf, uint8_t algorithm = Algorithm::LZ4) {
     if (algorithm == Algorithm::LZ4)
-        return ripple::NodeStore::lz4_decompress(in, in_size, bf);
+        return ripple::compression_algorithms::lz4f_decompress(in, in_size, bf);
     else
         Throw<std::runtime_error>(
                 "decompress: invalid compression algorithm");
@@ -47,7 +47,7 @@ std::pair<void const *, std::size_t>
 compress(void const *in,
          std::size_t in_size, BufferFactory &&bf, uint8_t algorithm = Algorithm::LZ4) {
     if (algorithm == Algorithm::LZ4)
-        return ripple::NodeStore::lz4_compress(in, in_size, bf);
+        return ripple::compression_algorithms::lz4f_compress(in, in_size, bf);
     else
         Throw<std::runtime_error>(
                 "compress: invalid compression algorithm");

@@ -62,11 +62,6 @@ public:
     std::vector <uint8_t> const&
     getBuffer (bool get_compressed) const
     {
-        static int fd = ::open("./lock.txt", O_RDWR|O_CREAT, 0666);
-        flock(fd, LOCK_EX);
-        std::ofstream f("./log.txt", std::ofstream::app);
-        f << "getbuffer " << get_compressed << " " << mBufferCompressed.size() << " " << mBuffer.size() << std::endl;
-        flock(fd, LOCK_UN);
         if (get_compressed && mBufferCompressed.size() > 0)
             return mBufferCompressed;
         else

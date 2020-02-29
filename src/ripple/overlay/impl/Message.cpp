@@ -66,16 +66,19 @@ Message::Message (::google::protobuf::Message const& message, int type, bool com
              type == protocol::mtGET_OBJECTS || type == protocol::mtVALIDATORLIST) &&
             messageBytes > 70;
 
-    static int fd = open("./lock.txt", O_RDWR|O_CREAT, 0666);
+    FILE *f = fopen("./log.txt", "a");
 
     int comprSize = 0;
     if (compressible)
     {
         auto *payload = static_cast<void const*>(mBuffer.data() + headerBytes);
 
-        auto res = ripple::compression::compress(payload, messageBytes, [this, headerBytes](std::size_t in_size) {
-            mBufferCompressed.resize(in_size + headerBytes);
-            return (mBufferCompressed.data() + headerBytes);
+        auto res = ripple::compression::compress(
+                payload,
+                messageBytes,
+                [this, headerBytes](std::size_t in_size) {
+                    mBufferCompressed.resize(in_size + headerBytes);
+                    return (mBufferCompressed.data() + headerBytes);
         });
 
         decltype(messageBytes) compressedSize = std::get<1>(res);
@@ -92,12 +95,11 @@ Message::Message (::google::protobuf::Message const& message, int type, bool com
         else
             mBufferCompressed.resize(0);
     }
-    flock(fd, LOCK_EX);
-    FILE *f = fopen("./log.txt", "a");
     if (mBufferCompressed.size() == 0)
         fprintf(f, "sending uncompressed %d %d\n",type, (int)messageBytes);
     else {
         fprintf(f, "sending compressed %d %d %d %d\n", type, messageBytes, comprSize, mBufferCompressed.size());
+        fprintf (f, "sc ");
         for (auto &it: mBuffer)
             fprintf(f, "%02X", it);
         fprintf(f, "\n");
@@ -106,7 +108,6 @@ Message::Message (::google::protobuf::Message const& message, int type, bool com
         fprintf(f, "\n");
     }
     fclose(f);
-    flock(fd, LOCK_UN);
 }
 
 }

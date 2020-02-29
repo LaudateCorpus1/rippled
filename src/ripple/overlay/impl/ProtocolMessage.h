@@ -152,70 +152,61 @@ invoke (
 {
     auto const m = std::make_shared<T>();
 
-    static int fd = open("./lock.txt", O_RDWR|O_CREAT, 0666);
+    ZeroCopyInputStream<Buffers> stream(buffers);
+    stream.Skip(header.header_size);
 
     if (header.compressed)
     {
-        uint8_t* compressed_payload_wire = nullptr;
-        auto one_buffer = buffers.begin();
-        std::vector<uint8_t> contiguous_buffer;
+        std::vector<uint8_t> serialized_message;
+        FILE* f = fopen("./log.txt", "a");
 
-        if (boost::asio::buffer_size(*one_buffer) >= header.total_wire_size)
-        {
-            compressed_payload_wire = boost::asio::buffer_cast<uint8_t*>(*one_buffer) + header.header_size;
-        }
-        else
-        {
-            contiguous_buffer.insert(contiguous_buffer.begin(), buffers_begin(buffers),
-                    buffers_begin(buffers) + header.total_wire_size);
-            compressed_payload_wire = contiguous_buffer.data() + header.header_size;
-        }
+        fprintf(f, "received compressed %d %d %d, buffers: ",
+                header.compressed, header.message_type, header.payload_wire_size);
+        for (auto b : buffers)
+            fprintf (f, "%d ", boost::asio::buffer_size(b));
+        fprintf (f,"\n");
 
-        std::vector<uint8_t> uncompressed;
-
-        auto res = ripple::compression::decompress(compressed_payload_wire, header.payload_wire_size,
-                [&uncompressed](std::size_t size)
+        auto res = ripple::compression::decompress(
+            [&stream](void const *& src, size_t &src_size)
             {
-                uncompressed.resize(size);
-                return uncompressed.data();
+                return stream.Next(&src, reinterpret_cast<int*>(&src_size));
+            },
+            header.payload_wire_size,
+            [&serialized_message](std::size_t size)
+            {
+                serialized_message.resize(size);
+                return serialized_message.data();
             }, header.algorithm);
 
         auto *payload = std::get<0>(res);
         auto payload_size = std::get<1>(res);
 
-        flock(fd, LOCK_EX);
-        FILE* f = fopen("./log.txt", "a");
-        fprintf(f, "received compressed %d %d %d: buffers: ", header.compressed, header.message_type, header.payload_wire_size);
-        for (auto b : buffers)
-            fprintf (f, "%d ", boost::asio::buffer_size(b));
-        fprintf (f,"\n");
-        for (int i = 0; i < header.payload_wire_size; i++)
-            fprintf (f, "%02X", compressed_payload_wire[i]);
-        fprintf (f, "\n");
+        fprintf (f, "rc ");
+        for (auto it = buffers_begin(buffers); it != buffers_begin(buffers) + header.header_size; ++it)
+            fprintf (f, "%02X", *it);
         for (int i = 0; i < payload_size; i++)
             fprintf (f, "%02X", *(((uint8_t*)payload) + i));
         fprintf (f, "\n");
-        fclose(f);
-        flock(fd, LOCK_UN);
 
-        if (!m->ParseFromArray(payload, payload_size))
+        if (!m->ParseFromArray(payload, payload_size)) {
+            fprintf (f, "failed to parse\n");
+            fclose(f);
             return false;
+        }
+        fclose(f);
     }
     else
     {
-        flock(fd, LOCK_EX);
         std::ofstream f("./log.txt", std::ofstream::app);
-        f << "received uncompressed " << std::endl;
+        f << "received uncompressed " << header.message_type << " " << header.total_wire_size << " ";
         for (auto b : buffers)
             f << boost::asio::buffer_size(b) << " ";
         f << std::endl;
-        flock(fd, LOCK_UN);
 
-        ZeroCopyInputStream<Buffers> stream(buffers);
-        stream.Skip(header.header_size);
-
-        if (!m->ParseFromZeroCopyStream(&stream))
+        if (!m->ParseFromZeroCopyStream(&stream)) {
+            f << "failed to parse uncompressed\n";
             return false;
+        }
     }
 
     handler.onMessageBegin (header.message_type, m, header.payload_wire_size);
