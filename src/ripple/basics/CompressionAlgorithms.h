@@ -20,72 +20,17 @@
 #ifndef RIPPLED_COMPRESSIONALGORITHMS_H_INCLUDED
 #define RIPPLED_COMPRESSIONALGORITHMS_H_INCLUDED
 
+#include <ripple/nodestore/impl/varint.h>
 #include <lz4frame.h>
-#include <endian.h>
 #include <array>
 
 namespace ripple {
 
 namespace compression_algorithms {
 
-// LZ4F (frame) compression tailored towards protocol message compression
-// Compresses whole message.
-// Can use multiple buffers passed one at a time as input to decompress function.
-// LZ4 decompress does not necessarily read all input bytes, in which case
-// the remaining input has to be copied and the next buffer must be appended.
-// Compressed buffer is prefixed with a variable size header containing
-// the original data size. First two bits of the header contain the number
-// of bytes of the original data size: 01 - 1, 10 - 2, 11 - 3, 00 - 4.
-// This enables the use of the ZeroCopyInputStream as the input stream.
-// But the message size is limited to 0x3FFFFFFF.
-
 inline void do_throw(const char *message)
 {
     Throw<std::runtime_error>(message);
-}
-
-inline
-std::uint8_t
-get_size(std::uint8_t h)
-{
-    uint8_t n = h >> 6;
-    return (n == 0) ? 4 : n;
-}
-
-inline
-std::uint8_t
-write_size(void *dst, std::uint32_t v)
-{
-    int n = 4;
-    if (v <= 0x3F)
-        n = 1;
-    else if (v <= 0x3FFF)
-        n = 2;
-    else if (v <= 0x3FFFFF)
-        n = 3;
-    else if (v > 0x3FFFFFFF)
-        return 0;
-    v <<= (8 * (sizeof(std::uint32_t) - n));
-    v |= n << 30;
-    v = htobe32(v);
-    std::memcpy(dst, (std::uint8_t*)&v, n);
-    return n;
-}
-
-inline
-std::uint8_t
-read_size(std::uint8_t const *dst, std::uint8_t buflen, std::uint32_t &v)
-{
-    std::uint8_t n = get_size(*dst);
-
-    if (buflen < n)
-        return 0;
-
-    std::memcpy(&v, dst, n);
-    v = be32toh(v) & 0x3FFFFFFF;
-    v >>= 8 * (sizeof(std::uint32_t) - n);
-
-    return n;
 }
 
 template<typename BufferFactory>
@@ -94,12 +39,12 @@ lz4f_compress(void const * in,
               std::size_t in_size, BufferFactory&& bf)
 {
     std::pair<void const*, std::size_t> result;
-    std::array<std::uint8_t, sizeof(uint32_t)> vi;
+    std::array<std::uint8_t, varint_traits<std::uint32_t>::max> vi;
 
-    auto const original_size_bytes = write_size(vi.data(), in_size);
+    if (in_size > UINT32_MAX)
+        do_throw("lz4f compress: invalid size");
 
-    if (original_size_bytes == 0)
-        do_throw("lz4f compress: large size");
+    auto const original_size_bytes = write_varint(vi.data(), in_size);
 
     std::size_t const out_capacity = LZ4F_compressFrameBound(in_size, NULL);
 
@@ -125,23 +70,19 @@ lz4f_compress(void const * in,
 
 template<typename InputStream>
 bool
-copy_stream(InputStream& in, std::uint8_t* dst, int size)
+copy_stream(InputStream& in, std::uint8_t* dst, int size, std::vector<int> &used_size)
 {
     const void * data = NULL;
     int data_size = 0;
     int copied = 0;
-    int total = 0;
 
     while (copied != size && in.Next(&data, &data_size))
     {
         auto sz = data_size >= (size - copied) ? (size - copied) : data_size;
         std::memcpy(dst + copied, data, sz);
         copied += sz;
-        total += data_size;
+        used_size.push_back(data_size);
     }
-
-    if (total > copied)
-        in.BackUp(total - copied);
 
     return copied == size;
 }
@@ -150,32 +91,37 @@ template<typename InputStream>
 std::size_t
 get_original_size(InputStream& in)
 {
-    std::array<std::uint8_t, sizeof(std::uint32_t)> vi;
-    std::uint32_t original_size = 0;
+    std::array<std::uint8_t, varint_traits<std::uint32_t>::max> vi;
+    std::size_t original_size = 0;
     const void * data = NULL;
     int data_size = 0;
+    std::vector<int> used_size;
 
     if (!in.Next(&data, &data_size))
         do_throw("lz4f decompress: invalid input size");
 
+    used_size.push_back(data_size);
+
     const void *p = data;
 
-    uint8_t original_size_bytes = get_size(*reinterpret_cast<uint8_t const*>(p));
-
-    if (data_size < original_size_bytes)
+    if (data_size < varint_traits<std::uint32_t>::max)
     {
         std::memcpy(vi.data(), data, data_size);
-        if (!copy_stream(in, vi.data() + data_size, original_size_bytes - data_size))
+        if (!copy_stream(in, vi.data() + data_size,
+                varint_traits<std::uint32_t>::max - data_size, used_size))
             do_throw("lz4f decompress: header");
         p = vi.data();
     }
-    else if (data_size != original_size_bytes)
-        in.BackUp(data_size - original_size_bytes);
 
-    auto n = read_size(reinterpret_cast<std::uint8_t const *>(p), original_size_bytes, original_size);
+    auto original_size_bytes = read_varint(p, varint_traits<std::uint32_t>::max, original_size);
 
-    if (original_size_bytes != n)
+    if (original_size_bytes == 0)
         do_throw("lz4f decompress:: original_size_bytes == 0");
+
+    // rewind the stream
+    for (auto it = used_size.rbegin(); it != used_size.rend(); ++it)
+        in.BackUp(*it);
+    in.Skip(original_size_bytes);
 
     return original_size;
 }
