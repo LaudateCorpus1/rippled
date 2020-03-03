@@ -843,6 +843,7 @@ target_sources (rippled PRIVATE
   #]===============================]
   src/test/nodestore/Backend_test.cpp
   src/test/nodestore/Basics_test.cpp
+  src/test/nodestore/DatabaseShard_test.cpp
   src/test/nodestore/Database_test.cpp
   src/test/nodestore/Timing_test.cpp
   src/test/nodestore/import_test.cpp
