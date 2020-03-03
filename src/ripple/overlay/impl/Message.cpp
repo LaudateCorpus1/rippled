@@ -66,8 +66,6 @@ Message::Message (::google::protobuf::Message const& message, int type, bool com
              type == protocol::mtGET_OBJECTS || type == protocol::mtVALIDATORLIST) &&
             messageBytes > 70;
 
-    FILE *f = fopen("./log.txt", "a");
-
     int comprSize = 0;
     if (compressible)
     {
@@ -95,19 +93,6 @@ Message::Message (::google::protobuf::Message const& message, int type, bool com
         else
             mBufferCompressed.resize(0);
     }
-    if (mBufferCompressed.size() == 0)
-        fprintf(f, "sending uncompressed %d %d\n",type, (int)messageBytes);
-    else {
-        fprintf(f, "sending compressed %d %d %d %d\n", type, messageBytes, comprSize, mBufferCompressed.size());
-        fprintf (f, "sc ");
-        for (auto &it: mBuffer)
-            fprintf(f, "%02X", it);
-        fprintf(f, "\n");
-        for (auto &it: mBufferCompressed)
-            fprintf(f, "%02X", it);
-        fprintf(f, "\n");
-    }
-    fclose(f);
 }
 
 }
