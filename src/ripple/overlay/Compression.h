@@ -31,9 +31,9 @@ enum Algorithm : uint8_t {
     LZ4 = 0x01
 };
 
-template<typename BufferIn, typename BufferFactory>
+template<typename InputStream, typename BufferFactory>
 std::pair<void const *, std::size_t>
-decompress(BufferIn&& in,
+decompress(InputStream& in,
            std::size_t in_size, BufferFactory &&bf, uint8_t algorithm = Algorithm::LZ4) {
     if (algorithm == Algorithm::LZ4)
         return ripple::compression_algorithms::lz4f_decompress(in, in_size, bf);

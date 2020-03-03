@@ -157,20 +157,10 @@ invoke (
 
     if (header.compressed)
     {
-        std::vector<uint8_t> serialized_message;
-        FILE* f = fopen("./log.txt", "a");
-
-        fprintf(f, "received compressed %d %d %d, buffers: ",
-                header.compressed, header.message_type, header.payload_wire_size);
-        for (auto b : buffers)
-            fprintf (f, "%d ", boost::asio::buffer_size(b));
-        fprintf (f,"\n");
+        std::vector<std::uint8_t> serialized_message;
 
         auto res = ripple::compression::decompress(
-            [&stream](void const *& src, size_t &src_size)
-            {
-                return stream.Next(&src, reinterpret_cast<int*>(&src_size));
-            },
+            stream,
             header.payload_wire_size,
             [&serialized_message](std::size_t size)
             {
@@ -181,32 +171,13 @@ invoke (
         auto *payload = std::get<0>(res);
         auto payload_size = std::get<1>(res);
 
-        fprintf (f, "rc ");
-        for (auto it = buffers_begin(buffers); it != buffers_begin(buffers) + header.header_size; ++it)
-            fprintf (f, "%02X", *it);
-        for (int i = 0; i < payload_size; i++)
-            fprintf (f, "%02X", *(((uint8_t*)payload) + i));
-        fprintf (f, "\n");
-
-        if (!m->ParseFromArray(payload, payload_size)) {
-            fprintf (f, "failed to parse\n");
-            fclose(f);
+        if (!m->ParseFromArray(payload, payload_size))
             return false;
-        }
-        fclose(f);
     }
     else
     {
-        std::ofstream f("./log.txt", std::ofstream::app);
-        f << "received uncompressed " << header.message_type << " " << header.total_wire_size << " ";
-        for (auto b : buffers)
-            f << boost::asio::buffer_size(b) << " ";
-        f << std::endl;
-
-        if (!m->ParseFromZeroCopyStream(&stream)) {
-            f << "failed to parse uncompressed\n";
+        if (!m->ParseFromZeroCopyStream(&stream))
             return false;
-        }
     }
 
     handler.onMessageBegin (header.message_type, m, header.payload_wire_size);
