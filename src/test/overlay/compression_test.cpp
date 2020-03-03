@@ -55,8 +55,16 @@ public:
 
         std::vector<std::uint8_t> decompressed;
         boost::beast::multi_buffer buffers;
-        buffers.commit(
-                boost::asio::buffer_copy(buffers.prepare(buffer.size()), boost::asio::buffer(buffer)));
+        uint8_t n = 4;
+        // simulate multi-buffer
+        auto sz = buffer.size() / n;
+        for (int i = 0; i < n; i++) {
+            auto start = buffer.begin() + sz * i;
+            auto end = i < n - 1 ? (buffer.begin() + sz * (i + 1)) : buffer.end();
+            std::vector<std::uint8_t> slice(start, end);
+            buffers.commit(
+                    boost::asio::buffer_copy(buffers.prepare(slice.size()), boost::asio::buffer(slice)));
+        }
         auto header = detail::parseMessageHeader(buffers.data(), buffer.size());
 
         printf ("==> parsed header: buffers size %d, compressed %d, algorithm %d, header size %d, payload size %d\n",
