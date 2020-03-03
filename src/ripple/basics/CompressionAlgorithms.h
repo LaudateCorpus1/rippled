@@ -185,10 +185,18 @@ lz4f_decompress(InputStream &in,
 
         if (src_size != chunk_size)
         {
-            std::memmove(buffer.data(),
-                         reinterpret_cast<uint8_t const*>(compressed) + src_size,
-                      chunk_size - src_size);
-            buffer.resize(chunk_size - src_size);
+            auto *p = reinterpret_cast<uint8_t const *>(compressed) + src_size;
+            auto s = chunk_size - src_size;
+            if (buffer.size() > 0)
+            {
+                std::memmove(buffer.data(), p, s);
+                buffer.resize(s);
+            }
+            else
+            {
+                buffer.resize(s);
+                std::memcpy(buffer.data(), p, s);
+            }
         }
         else if (buffer.size() > 0)
             buffer.resize(0);
