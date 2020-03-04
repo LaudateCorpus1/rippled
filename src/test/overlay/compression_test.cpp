@@ -32,43 +32,88 @@
 #include <boost/beast/core/multi_buffer.hpp>
 #include <boost/endian/conversion.hpp>
 #include <boost/asio/ip/address_v4.hpp>
+#include <ripple/core/TimeKeeper.h>
+#include <ripple/beast/utility/Journal.h>
+#include <test/jtx/Env.h>
+#include <test/jtx/Account.h>
+#include <test/jtx/WSClient.h>
+#include <test/jtx/pay.h>
+#include <ripple/protocol/jss.h>
+#include <ripple/shamap/SHAMapNodeID.h>
+#include <ripple/app/ledger/Ledger.h>
+#include <ripple/app/ledger/LedgerMaster.h>
+#include <test/jtx/amount.h>
+#include <test/jtx/balance.h>
+#include <ripple/protocol/digest.h>
+#include <ripple/protocol/Sign.h>
 
 namespace ripple {
 
-class compression_test : public beast::unit_test::suite
+namespace test {
+
+using namespace ripple::test;
+using namespace ripple::test::jtx;
+
+static
+uint256
+ledgerHash (LedgerInfo const& info)
 {
+return ripple::sha512Half(
+        HashPrefix::ledgerMaster,
+        std::uint32_t(info.seq),
+        std::uint64_t(info.drops.drops ()),
+        info.parentHash,
+        info.txHash,
+        info.accountHash,
+        std::uint32_t(info.parentCloseTime.time_since_epoch().count()),
+        std::uint32_t(info.closeTime.time_since_epoch().count()),
+        std::uint8_t(info.closeTimeResolution.count()),
+        std::uint8_t(info.closeFlags));
+}
+
+class compression_test : public beast::unit_test::suite {
 
 public:
-    compression_test () {}
+    compression_test() {}
 
     template<typename T>
     void
-    do_test (std::shared_ptr<T> proto, protocol::MessageType mt, const char *msg) {
+    do_test(std::shared_ptr<T> proto, protocol::MessageType mt, uint16_t nbuffers, const char *msg,
+            bool log = true) {
 
-        printf ("=== compress/decompress %s ===\n", msg);
+        if (log)
+            printf("=== compress/decompress %s ===\n", msg);
         Message m(*proto, mt, true);
 
         auto &buffer = m.getBuffer(true);
 
-        printf ("==> compressed, original %d bytes, compressed %d bytes\n", m.getBuffer(false).size(),
-                m.getBuffer(true).size());
+        if (log)
+            printf("==> compressed, original %d bytes, compressed %d bytes\n", m.getBuffer(false).size(),
+                   m.getBuffer(true).size());
 
         std::vector<std::uint8_t> decompressed;
         boost::beast::multi_buffer buffers;
-        uint8_t n = 4;
         // simulate multi-buffer
-        auto sz = buffer.size() / n;
-        for (int i = 0; i < n; i++) {
+        auto sz = buffer.size() / nbuffers;
+        for (int i = 0; i < nbuffers; i++) {
             auto start = buffer.begin() + sz * i;
-            auto end = i < n - 1 ? (buffer.begin() + sz * (i + 1)) : buffer.end();
+            auto end = i < nbuffers - 1 ? (buffer.begin() + sz * (i + 1)) : buffer.end();
             std::vector<std::uint8_t> slice(start, end);
             buffers.commit(
                     boost::asio::buffer_copy(buffers.prepare(slice.size()), boost::asio::buffer(slice)));
         }
-        auto header = detail::parseMessageHeader(buffers.data(), buffer.size());
+        auto header = ripple::detail::parseMessageHeader(buffers.data(), buffer.size());
 
-        printf ("==> parsed header: buffers size %d, compressed %d, algorithm %d, header size %d, payload size %d\n",
-                buffers.size(), header->compressed, header->algorithm, header->header_size, header->payload_wire_size);
+        if (log)
+            printf("==> parsed header: buffers size %d, compressed %d, algorithm %d, header size %d, payload size %d, buffer size %d\n",
+                   buffers.size(), header->compressed, header->algorithm, header->header_size,
+                   header->payload_wire_size, buffer.size());
+
+        if (!header->compressed) {
+            if (log)
+                printf("==> NOT COMPRESSED\n");
+            return;
+        }
 
         BEAST_EXPECT(header->payload_wire_size == buffer.size() - header->header_size);
 
@@ -76,23 +121,24 @@ public:
         stream.Skip(header->header_size);
 
         auto res = ripple::compression::decompress(stream, header->payload_wire_size,
-                                                   [this, &decompressed](size_t size) {
-            printf ("==> decompress requested %d bytes\n", size);
-            decompressed.resize(size);
-            return decompressed.data();
-        });
+                                                   [this, &decompressed, log](size_t size) {
+                                                       if (log)
+                                                           printf("==> decompress requested %d bytes\n", size);
+                                                       decompressed.resize(size);
+                                                       return decompressed.data();
+                                                   });
         auto const proto1 = std::make_shared<T>();
 
         BEAST_EXPECT(proto1->ParseFromArray(std::get<0>(res), std::get<1>(res)));
         std::string str = proto->SerializeAsString();
         std::string str1 = proto1->SerializeAsString();
         BEAST_EXPECT(str == str1);
-        printf ("\n");
+        if (log)
+            printf("\n");
     }
 
     std::shared_ptr<protocol::TMManifests>
-    buildManifests(int n)
-    {
+    buildManifests(int n) {
         auto manifests = std::make_shared<protocol::TMManifests>();
         manifests->mutable_list()->Reserve(n);
         for (int i = 0; i < n; i++) {
@@ -107,14 +153,14 @@ public:
             sign(st, HashPrefix::manifest, KeyType::ed25519, std::get<1>(signing));
             Serializer s;
             st.add(s);
-            manifests->add_list()->set_stobject(s.data(), s.size());
+            auto *manifest = manifests->add_list();
+            manifest->set_stobject(s.data(), s.size());
         }
         return manifests;
     }
 
     std::shared_ptr<protocol::TMEndpoints>
-    buildEndpoints(int n)
-    {
+    buildEndpoints(int n) {
         auto endpoints = std::make_shared<protocol::TMEndpoints>();
         endpoints->mutable_endpoints()->Reserve(n);
         for (int i = 0; i < n; i++) {
@@ -130,10 +176,177 @@ public:
         return endpoints;
     }
 
-    void
-    testProtocol ()
+    std::shared_ptr<protocol::TMTransaction>
+    buildTransaction(Logs &logs) {
+        Env env(*this, envconfig());
+        int fund = 10000;
+        auto const alice = Account("alice");
+        auto const bob = Account("bob");
+        env.fund(XRP(fund), "alice", "bob");
+        env.trust(bob["USD"](fund), alice);
+        env.close();
+
+        auto toBinary = [](std::string const &text) {
+            std::string binary;
+            for (size_t i = 0; i < text.size(); ++i) {
+                unsigned int c = charUnHex(text[i]);
+                c = c << 4;
+                ++i;
+                c = c | charUnHex(text[i]);
+                binary.push_back(c);
+            }
+
+            return binary;
+        };
+
+        std::string xrpTxBlob = "";
+        std::string usdTxBlob = "";
+        // use a websocket client to fill transaction blobs
+        auto wsc = makeWSClient(env.app().config());
+        {
+            Json::Value jrequestXrp;
+            jrequestXrp[jss::secret] = toBase58(generateSeed("alice"));
+            jrequestXrp[jss::tx_json] =
+                    pay("alice", "bob", XRP(fund / 2));
+            Json::Value jreply_xrp = wsc->invoke("sign", jrequestXrp);
+
+            xrpTxBlob =
+                    toBinary(jreply_xrp[jss::result][jss::tx_blob].asString());
+        }
+        {
+            Json::Value jrequestUsd;
+            jrequestUsd[jss::secret] = toBase58(generateSeed("bob"));
+            jrequestUsd[jss::tx_json] =
+                    pay("bob", "alice", bob["USD"](fund / 2));
+            Json::Value jreply_usd = wsc->invoke("sign", jrequestUsd);
+
+            usdTxBlob =
+                    toBinary(jreply_usd[jss::result][jss::tx_blob].asString());
+        }
+
+        auto transaction = std::make_shared<protocol::TMTransaction>();
+        transaction->set_rawtransaction(usdTxBlob);
+        transaction->set_status(protocol::tsNEW);
+        auto tk = make_TimeKeeper(logs.journal("TimeKeeper"));
+        transaction->set_receivetimestamp(tk->now().time_since_epoch().count());
+        transaction->set_deferred(true);
+
+        return transaction;
+    }
+
+    std::shared_ptr<protocol::TMGetLedger>
+    buildGetLedger() {
+        auto getledger = std::make_shared<protocol::TMGetLedger>();
+        getledger->set_itype(protocol::liTS_CANDIDATE);
+        getledger->set_ltype(protocol::TMLedgerType::ltACCEPTED);
+        uint256 const hash(ripple::sha512Half(123456789));
+        getledger->set_ledgerhash(hash.begin(), hash.size());
+        getledger->set_ledgerseq(11111111);
+        ripple::SHAMapNodeID sha(hash.data(), hash.size());
+        getledger->add_nodeids(sha.getRawString());
+        getledger->set_requestcookie(123456789);
+        getledger->set_querytype(protocol::qtINDIRECT);
+        getledger->set_querydepth(3);
+        return getledger;
+    }
+
+    jtx::PrettyAmount
+    xrpMinusFee(jtx::Env const &env, std::int64_t xrpAmount) {
+        using namespace jtx;
+        auto feeDrops = env.current()->fees().base;
+        return drops(
+                dropsPerXRP * xrpAmount - feeDrops);
+    };
+
+    std::shared_ptr<protocol::TMLedgerData>
+    buildLedgerData(uint32_t n, Logs &logs) {
+        auto ledgerdata = std::make_shared<protocol::TMLedgerData>();
+        uint256 const hash(ripple::sha512Half(12356789));
+        ledgerdata->set_ledgerhash(hash.data(), hash.size());
+        ledgerdata->set_ledgerseq(123456789);
+        ledgerdata->set_type(protocol::TMLedgerInfoType::liAS_NODE);
+        ledgerdata->set_requestcookie(123456789);
+        ledgerdata->set_error(protocol::TMReplyError::reNO_LEDGER);
+        ledgerdata->mutable_nodes()->Reserve(n);
+        uint256 parentHash(0);
+        for (int i = 0; i < n; i++) {
+            LedgerInfo info;
+            auto tk = make_TimeKeeper(logs.journal("TimeKeeper"));
+            info.seq = i;
+            info.parentCloseTime = tk->now();
+            info.hash = ripple::sha512Half(i);
+            info.txHash = ripple::sha512Half(i + 1);
+            info.accountHash = ripple::sha512Half(i + 2);
+            info.parentHash = parentHash;
+            info.drops = XRPAmount(10);
+            info.closeTimeResolution = tk->now().time_since_epoch();
+            info.closeTime = tk->now();
+            parentHash = ledgerHash(info);
+            Serializer nData;
+            ripple::addRaw(info, nData);
+            ledgerdata->add_nodes()->set_nodedata(nData.getDataPtr(), nData.getLength());
+        }
+
+        return ledgerdata;
+    }
+
+    std::shared_ptr<protocol::TMGetObjectByHash>
+    buildGetObjectByHash() {
+        auto getobject = std::make_shared<protocol::TMGetObjectByHash>();
+
+        getobject->set_type(protocol::TMGetObjectByHash_ObjectType::TMGetObjectByHash_ObjectType_otTRANSACTION);
+        getobject->set_query(true);
+        getobject->set_seq(123456789);
+        uint256 hash(123456789);
+        getobject->set_ledgerhash(hash.data(), hash.size());
+        getobject->set_fat(true);
+        for (int i = 0; i < 100; i++) {
+            uint256 hash(i);
+            auto object = getobject->add_objects();
+            object->set_hash(hash.data(), hash.size());
+            ripple::SHAMapNodeID sha(hash.data(), hash.size());
+            object->set_nodeid(sha.getRawString());
+            object->set_index("");
+            object->set_data("");
+            object->set_ledgerseq(i);
+        }
+        return getobject;
+    }
+
+    std::shared_ptr<protocol::TMValidatorList>
+    buildValidatorList()
     {
-        testcase ("Message Compression");
+        auto list = std::make_shared<protocol::TMValidatorList>();
+
+        auto master = randomKeyPair(KeyType::ed25519);
+        auto signing = randomKeyPair(KeyType::ed25519);
+        STObject st(sfGeneric);
+        st[sfSequence] = 0;
+        st[sfPublicKey] = std::get<0>(master);
+        st[sfSigningPubKey] = std::get<0>(signing);
+        st[sfDomain] = makeSlice(std::string("example.com"));
+        sign(st, HashPrefix::manifest, KeyType::ed25519, std::get<1>(master), sfMasterSignature);
+        sign(st, HashPrefix::manifest, KeyType::ed25519, std::get<1>(signing));
+        Serializer s;
+        st.add(s);
+        list->set_manifest(s.data(), s.size());
+        list->set_version(3);
+        STObject signature(sfSignature);
+        ripple::sign(st, HashPrefix::manifest,KeyType::ed25519, std::get<1>(signing));
+        Serializer s1;
+        st.add(s1);
+        list->set_signature(s1.data(), s1.size());
+        list->set_blob(strHex(s.getString()));
+        return list;
+    }
+
+    void
+    testProtocol() {
+        testcase("Message Compression");
+
+        auto thresh = beast::severities::Severity::kInfo;
+        auto logs = std::make_unique<Logs>(thresh);
+
         protocol::TMManifests manifests;
         protocol::TMEndpoints endpoints;
         protocol::TMTransaction transaction;
@@ -142,17 +355,28 @@ public:
         protocol::TMGetObjectByHash get_object;
         protocol::TMValidatorList validator_list;
 
-        do_test(buildManifests(20), protocol::mtMANIFESTS, "TMManifests");
-        do_test(buildEndpoints(10), protocol::mtENDPOINTS, "TMEndpoints");
+        do_test(buildManifests(20), protocol::mtMANIFESTS, 4, "TMManifests");
+        do_test(buildEndpoints(10), protocol::mtENDPOINTS, 4, "TMEndpoints");
+        do_test(buildTransaction(*logs), protocol::mtTRANSACTION, 1, "TMTransaction");
+        do_test(buildGetLedger(), protocol::mtGET_LEDGER, 1, "TMGetLedger");
+        do_test(buildLedgerData(500, *logs), protocol::mtLEDGER_DATA, 10, "TMLedgerData500");
+        do_test(buildLedgerData(1000, *logs), protocol::mtLEDGER_DATA, 20, "TMLedgerData1000");
+        do_test(buildLedgerData(10000, *logs), protocol::mtLEDGER_DATA, 50, "TMLedgerData10000");
+        do_test(buildLedgerData(100000, *logs), protocol::mtLEDGER_DATA, 100, "TMLedgerData100000");
+        do_test(buildLedgerData(500000, *logs), protocol::mtLEDGER_DATA, 100, "TMLedgerData500000");
+        // this would fail because the payload is > 64MB.
+        do_test(buildLedgerData((uint32_t)1000000, *logs), protocol::mtLEDGER_DATA, 1000, "TMLedgerData1000000");
+        do_test(buildGetObjectByHash(), protocol::mtGET_OBJECTS, 4, "TMGetObjectByHash");
+        do_test(buildValidatorList(), protocol::mtVALIDATORLIST, 4, "TMValidatorList");
     }
 
-    void run () override
-    {
-        testProtocol ();
+    void run() override {
+        testProtocol();
     }
 
 };
 
-BEAST_DEFINE_TESTSUITE_MANUAL_PRIO(compression,ripple_data,ripple,20);
+BEAST_DEFINE_TESTSUITE_MANUAL_PRIO(compression, ripple_data, ripple, 20);
 
+}
 }
