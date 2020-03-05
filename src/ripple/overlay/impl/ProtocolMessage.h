@@ -33,7 +33,6 @@
 #include <memory>
 #include <type_traits>
 #include <vector>
-#include <sys/file.h>
 
 namespace ripple {
 
@@ -174,11 +173,8 @@ invoke (
         if (!m->ParseFromArray(payload, payload_size))
             return false;
     }
-    else
-    {
-        if (!m->ParseFromZeroCopyStream(&stream))
-            return false;
-    }
+    else if (!m->ParseFromZeroCopyStream(&stream))
+        return false;
 
     handler.onMessageBegin (header.message_type, m, header.payload_wire_size);
     handler.onMessage (m);

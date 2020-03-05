@@ -21,7 +21,6 @@
 #include <ripple/overlay/Message.h>
 #include <ripple/overlay/impl/TrafficCount.h>
 #include <ripple/overlay/Compression.h>
-#include <ripple/app/main/Application.h>
 #include <cstdint>
 
 namespace ripple {
@@ -66,7 +65,6 @@ Message::Message (::google::protobuf::Message const& message, int type, bool com
              type == protocol::mtGET_OBJECTS || type == protocol::mtVALIDATORLIST) &&
             messageBytes > 70;
 
-    int comprSize = 0;
     if (compressible)
     {
         auto *payload = static_cast<void const*>(mBuffer.data() + headerBytes);
@@ -85,9 +83,7 @@ Message::Message (::google::protobuf::Message const& message, int type, bool com
         // TODO should we have min acceptable compression ratio?
         if (ratio > 0.0)
         {
-            // set the buffer to the header size + compressed size
             mBufferCompressed.resize(headerBytes + compressedSize);
-            comprSize = compressedSize;
             set_header(mBufferCompressed.data(), compressedSize, type, true);
         }
         else
