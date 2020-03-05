@@ -26,7 +26,7 @@
 #include <ripple/protocol/HashPrefix.h>
 #include <ripple/protocol/Sign.h>
 #include <ripple/overlay/Message.h>
-#include <ripple/overlay/Compression.h>
+//#include <ripple/overlay/Compression.h>
 #include <ripple/overlay/impl/ZeroCopyStream.h>
 #include <ripple/overlay/impl/ProtocolMessage.h>
 #include <boost/beast/core/multi_buffer.hpp>
@@ -43,9 +43,10 @@
 #include <ripple/app/ledger/Ledger.h>
 #include <ripple/app/ledger/LedgerMaster.h>
 #include <test/jtx/amount.h>
-#include <test/jtx/balance.h>
+//#include <test/jtx/balance.h>
 #include <ripple/protocol/digest.h>
-#include <ripple/protocol/Sign.h>
+//#include <ripple/protocol/Sign.h>
+#include <algorithm>
 
 namespace ripple {
 
@@ -130,9 +131,9 @@ public:
         auto const proto1 = std::make_shared<T>();
 
         BEAST_EXPECT(proto1->ParseFromArray(std::get<0>(res), std::get<1>(res)));
-        std::string str = proto->SerializeAsString();
-        std::string str1 = proto1->SerializeAsString();
-        BEAST_EXPECT(str == str1);
+        auto uncompressed = m.getBuffer(false);
+        BEAST_EXPECT(std::equal(uncompressed.begin() + header->header_size, uncompressed.end(),
+                decompressed.begin()));
         if (log)
             printf("\n");
     }
@@ -199,20 +200,8 @@ public:
             return binary;
         };
 
-        std::string xrpTxBlob = "";
         std::string usdTxBlob = "";
-        // use a websocket client to fill transaction blobs
         auto wsc = makeWSClient(env.app().config());
-        {
-            Json::Value jrequestXrp;
-            jrequestXrp[jss::secret] = toBase58(generateSeed("alice"));
-            jrequestXrp[jss::tx_json] =
-                    pay("alice", "bob", XRP(fund / 2));
-            Json::Value jreply_xrp = wsc->invoke("sign", jrequestXrp);
-
-            xrpTxBlob =
-                    toBinary(jreply_xrp[jss::result][jss::tx_blob].asString());
-        }
         {
             Json::Value jrequestUsd;
             jrequestUsd[jss::secret] = toBase58(generateSeed("bob"));
@@ -241,7 +230,7 @@ public:
         getledger->set_ltype(protocol::TMLedgerType::ltACCEPTED);
         uint256 const hash(ripple::sha512Half(123456789));
         getledger->set_ledgerhash(hash.begin(), hash.size());
-        getledger->set_ledgerseq(11111111);
+        getledger->set_ledgerseq(123456789);
         ripple::SHAMapNodeID sha(hash.data(), hash.size());
         getledger->add_nodeids(sha.getRawString());
         getledger->set_requestcookie(123456789);
@@ -249,14 +238,6 @@ public:
         getledger->set_querydepth(3);
         return getledger;
     }
-
-    jtx::PrettyAmount
-    xrpMinusFee(jtx::Env const &env, std::int64_t xrpAmount) {
-        using namespace jtx;
-        auto feeDrops = env.current()->fees().base;
-        return drops(
-                dropsPerXRP * xrpAmount - feeDrops);
-    };
 
     std::shared_ptr<protocol::TMLedgerData>
     buildLedgerData(uint32_t n, Logs &logs) {
@@ -297,11 +278,11 @@ public:
         getobject->set_type(protocol::TMGetObjectByHash_ObjectType::TMGetObjectByHash_ObjectType_otTRANSACTION);
         getobject->set_query(true);
         getobject->set_seq(123456789);
-        uint256 hash(123456789);
+        uint256 hash(ripple::sha512Half(123456789));
         getobject->set_ledgerhash(hash.data(), hash.size());
         getobject->set_fat(true);
         for (int i = 0; i < 100; i++) {
-            uint256 hash(i);
+            uint256 hash(ripple::sha512Half(i));
             auto object = getobject->add_objects();
             object->set_hash(hash.data(), hash.size());
             ripple::SHAMapNodeID sha(hash.data(), hash.size());
@@ -355,18 +336,31 @@ public:
         protocol::TMGetObjectByHash get_object;
         protocol::TMValidatorList validator_list;
 
-        do_test(buildManifests(20), protocol::mtMANIFESTS, 4, "TMManifests");
-        do_test(buildEndpoints(10), protocol::mtENDPOINTS, 4, "TMEndpoints");
+        // 4.5KB
+        do_test(buildManifests(20), protocol::mtMANIFESTS, 4, "TMManifests20");
+        // 22KB
+        do_test(buildManifests(100), protocol::mtMANIFESTS, 4, "TMManifests100");
+        // 131B
+        do_test(buildEndpoints(10), protocol::mtENDPOINTS, 4, "TMEndpoints10");
+        // 1.3KB
+        do_test(buildEndpoints(100), protocol::mtENDPOINTS, 4, "TMEndpoints100");
+        // 242B
         do_test(buildTransaction(*logs), protocol::mtTRANSACTION, 1, "TMTransaction");
+        // 87B
         do_test(buildGetLedger(), protocol::mtGET_LEDGER, 1, "TMGetLedger");
+        // 61KB
         do_test(buildLedgerData(500, *logs), protocol::mtLEDGER_DATA, 10, "TMLedgerData500");
+        // 122 KB
         do_test(buildLedgerData(1000, *logs), protocol::mtLEDGER_DATA, 20, "TMLedgerData1000");
+        // 1.2MB
         do_test(buildLedgerData(10000, *logs), protocol::mtLEDGER_DATA, 50, "TMLedgerData10000");
+        // 12MB
         do_test(buildLedgerData(100000, *logs), protocol::mtLEDGER_DATA, 100, "TMLedgerData100000");
+        // 61MB
         do_test(buildLedgerData(500000, *logs), protocol::mtLEDGER_DATA, 100, "TMLedgerData500000");
-        // this would fail because the payload is > 64MB.
-        do_test(buildLedgerData((uint32_t)1000000, *logs), protocol::mtLEDGER_DATA, 1000, "TMLedgerData1000000");
+        // 7.7KB
         do_test(buildGetObjectByHash(), protocol::mtGET_OBJECTS, 4, "TMGetObjectByHash");
+        // 895B
         do_test(buildValidatorList(), protocol::mtVALIDATORLIST, 4, "TMValidatorList");
     }
 
