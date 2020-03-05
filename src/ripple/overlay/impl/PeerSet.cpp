@@ -115,7 +115,7 @@ void PeerSet::sendRequest (const protocol::TMGetLedger& tmGL, std::shared_ptr<Pe
     if (!peer)
         sendRequest (tmGL);
     else
-        peer->send (std::make_shared<Message> (tmGL, protocol::mtGET_LEDGER, app_.config().COMPRESSION));
+        peer->send (std::make_shared<Message> (tmGL, protocol::mtGET_LEDGER, peer->compression()));
 }
 
 void PeerSet::sendRequest (const protocol::TMGetLedger& tmGL)
