@@ -49,8 +49,7 @@ lz4f_compress(void const * in,
 
     std::size_t const out_capacity = LZ4F_compressFrameBound(in_size, NULL);
 
-    auto* compressed = reinterpret_cast<std::uint8_t*>(
-            bf(original_size_bytes + out_capacity));
+    auto* compressed = bf(original_size_bytes + out_capacity);
     result.first = compressed;
 
     std::memcpy(compressed, vi.data(), original_size_bytes);
@@ -136,10 +135,8 @@ lz4f_decompress(InputStream &in,
     LZ4F_dctx_s* dctx;
     const void * compressed_chunk = NULL;
     int chunk_size = 0;
-    std::size_t decompressed_size = 0;
     std::uint8_t * decompressed = NULL;
-    const void *compressed = NULL;
-    bool done = false;
+    std::size_t decompressed_size = 0;
     std::vector<std::uint8_t> buffer;
 
     std::size_t const dctx_status = LZ4F_createDecompressionContext(&dctx, LZ4F_VERSION);
@@ -150,7 +147,7 @@ lz4f_decompress(InputStream &in,
     decompressed = bf(result.second);
     result.first = decompressed;
 
-    while (!done && in.Next(&compressed_chunk, &chunk_size))
+    while (decompressed_size != result.second && in.Next(&compressed_chunk, &chunk_size))
     {
         if (chunk_size == 0)
             continue;
@@ -161,21 +158,18 @@ lz4f_decompress(InputStream &in,
             chunk_size = ((chunk_size + sz) <= in_size) ? chunk_size : (in_size - sz);
             buffer.resize(sz + chunk_size);
             std::memcpy(buffer.data() + sz, compressed_chunk, chunk_size);
-            compressed = buffer.data();
-            chunk_size += sz;
+            compressed_chunk = buffer.data();
+            chunk_size = buffer.size();
         }
         else
-        {
-            compressed = compressed_chunk;
             chunk_size = (chunk_size <= in_size) ? chunk_size : in_size;
-        }
 
         std::size_t dst_size = result.second - decompressed_size;
         std::size_t src_size = chunk_size;
         size_t size = LZ4F_decompress(dctx,
                                       decompressed + decompressed_size,
                                       &dst_size,
-                                      compressed,
+                                      compressed_chunk,
                                       &src_size,
                                       NULL);
         if (LZ4F_isError(size))
@@ -186,7 +180,7 @@ lz4f_decompress(InputStream &in,
 
         if (src_size != chunk_size)
         {
-            auto *p = reinterpret_cast<uint8_t const *>(compressed) + src_size;
+            auto *p = reinterpret_cast<uint8_t const *>(compressed_chunk) + src_size;
             auto s = chunk_size - src_size;
             if (buffer.size() > 0)
             {
@@ -201,9 +195,10 @@ lz4f_decompress(InputStream &in,
         }
         else if (buffer.size() > 0)
             buffer.resize(0);
-
-        done = decompressed_size == result.second;
     }
+
+    if (decompressed_size != result.second)
+        do_throw("lz4 decompress: insufficient input data");
 
     return result;
 }
