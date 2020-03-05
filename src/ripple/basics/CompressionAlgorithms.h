@@ -21,6 +21,7 @@
 #define RIPPLED_COMPRESSIONALGORITHMS_H_INCLUDED
 
 #include <ripple/nodestore/impl/varint.h>
+#include <ripple/basics/contract.h>
 #include <lz4frame.h>
 #include <array>
 
