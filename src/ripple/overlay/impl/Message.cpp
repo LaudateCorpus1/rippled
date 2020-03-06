@@ -72,7 +72,7 @@ Message::Message (::google::protobuf::Message const& message, int type, bool com
         auto res = ripple::compression::compress(
                 payload,
                 messageBytes,
-                [this, headerBytes](std::size_t in_size) {
+                [this](std::size_t in_size) {
                     mBufferCompressed.resize(in_size + headerBytes);
                     return (mBufferCompressed.data() + headerBytes);
         });
