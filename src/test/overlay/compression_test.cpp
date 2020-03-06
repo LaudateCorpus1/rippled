@@ -122,7 +122,7 @@ public:
         stream.Skip(header->header_size);
 
         auto res = ripple::compression::decompress(stream, header->payload_wire_size,
-                                                   [this, &decompressed, log](size_t size) {
+                                                   [&decompressed, log](size_t size) {
                                                        if (log)
                                                            printf("==> decompress requested %d bytes\n", size);
                                                        decompressed.resize(size);
