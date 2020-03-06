@@ -147,9 +147,10 @@ lz4f_decompress(InputStream &in,
     decompressed = bf(result.second);
     result.first = decompressed;
 
-    while (decompressed_size != result.second && in.Next(&compressed_chunk, &chunk_size))
+    while (decompressed_size != result.second &&
+            (in.Next(&compressed_chunk, &chunk_size) || (buffer.size() > 0 && buffer.size() != in_size)))
     {
-        if (chunk_size == 0)
+        if (chunk_size == 0 && buffer.size() == 0)
             continue;
 
         if (buffer.size() != 0)
@@ -164,6 +165,17 @@ lz4f_decompress(InputStream &in,
         else
             chunk_size = (chunk_size <= in_size) ? chunk_size : in_size;
 
+#define BUFFER_TEST
+#ifdef BUFFER_TEST
+        static uint32_t n = 0;
+        n++;
+        std::size_t cache = chunk_size * 0.2;
+        if (std::rand() % 5 == 0 && cache != 0)
+            chunk_size -= cache;
+        else
+            cache = 0;
+#endif
+
         std::size_t dst_size = result.second - decompressed_size;
         std::size_t src_size = chunk_size;
         size_t size = LZ4F_decompress(dctx,
@@ -172,11 +184,22 @@ lz4f_decompress(InputStream &in,
                                       compressed_chunk,
                                       &src_size,
                                       NULL);
-        if (LZ4F_isError(size))
+        if (LZ4F_isError(size) || src_size == 0)
             do_throw("lz4f decompress: failed");
 
         decompressed_size += dst_size;
         in_size -= src_size;
+
+#ifdef BUFFER_TEST
+        if (cache != 0 && src_size == chunk_size)
+        {
+            std::ofstream f("./log.txt", std::ofstream::app);
+            f << "buffer test pre " << n << " in " << in_size << " decompr " << decompressed_size
+              << " chunk " << chunk_size << " cache " << cache << " buffer " << buffer.size() << std::endl;
+            chunk_size += cache;
+            cache = 0;
+        }
+#endif
 
         if (src_size != chunk_size)
         {
@@ -195,6 +218,19 @@ lz4f_decompress(InputStream &in,
         }
         else if (buffer.size() > 0)
             buffer.resize(0);
+
+#ifdef BUFFER_TEST
+        if (cache != 0)
+        {
+            std::ofstream f("./log.txt", std::ofstream::app);
+            f << "buffer test post " << n << " in " << in_size << " decompr " << decompressed_size
+              << " chunk " << chunk_size << " cache " << cache << " buffer " << buffer.size() << std::endl;
+            auto *p = reinterpret_cast<uint8_t const *>(compressed_chunk) + chunk_size;
+            auto s = buffer.size();
+            buffer.resize(s + cache);
+            std::memcpy(buffer.data() + s, p, cache);
+        }
+#endif
     }
 
     if (decompressed_size != result.second)
