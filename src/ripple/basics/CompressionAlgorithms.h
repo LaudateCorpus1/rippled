@@ -126,6 +126,56 @@ get_original_size(InputStream& in)
     return original_size;
 }
 
+template<typename InputStream>
+bool
+next_chunk(InputStream &in, std::size_t in_size,
+        void const *& compressed_chunk, int &chunk_size,
+        std::vector<std::uint8_t> &buffer)
+{
+    bool res = in.Next(&compressed_chunk, &chunk_size);
+
+    if (!res && buffer.size() == 0)
+        return false;
+
+    if (buffer.size() != 0)
+    {
+        auto sz = buffer.size();
+        chunk_size = ((chunk_size + sz) <= in_size) ? chunk_size : (in_size - sz);
+        buffer.resize(sz + chunk_size);
+        std::memcpy(buffer.data() + sz, compressed_chunk, chunk_size);
+        compressed_chunk = buffer.data();
+        chunk_size = buffer.size();
+    }
+    else
+        chunk_size = (chunk_size <= in_size) ? chunk_size : in_size;
+
+    return true;
+}
+
+inline
+void
+update_buffer(std::size_t src_size,
+        const void * compressed_chunk, int chunk_size, std::vector<std::uint8_t> &buffer)
+{
+    if (src_size != chunk_size)
+    {
+        auto *p = reinterpret_cast<uint8_t const *>(compressed_chunk) + src_size;
+        auto s = chunk_size - src_size;
+        if (buffer.size() > 0)
+        {
+            std::memmove(buffer.data(), p, s);
+            buffer.resize(s);
+        }
+        else
+        {
+            buffer.resize(s);
+            std::memcpy(buffer.data(), p, s);
+        }
+    }
+    else if (buffer.size() > 0)
+        buffer.resize(0);
+}
+
 template<typename InputStream, typename BufferFactory>
 std::pair<void const*, std::size_t>
 lz4f_decompress(InputStream &in,
@@ -133,7 +183,7 @@ lz4f_decompress(InputStream &in,
 {
     std::pair<void const*, std::size_t> result{0, 0};
     LZ4F_dctx_s* dctx;
-    const void * compressed_chunk = NULL;
+    void const * compressed_chunk = NULL;
     int chunk_size = 0;
     std::uint8_t * decompressed = NULL;
     std::size_t decompressed_size = 0;
@@ -148,34 +198,8 @@ lz4f_decompress(InputStream &in,
     result.first = decompressed;
 
     while (decompressed_size != result.second &&
-            (in.Next(&compressed_chunk, &chunk_size) || (buffer.size() > 0 && buffer.size() != in_size)))
+        next_chunk(in, in_size, compressed_chunk, chunk_size, buffer))
     {
-        if (chunk_size == 0 && buffer.size() == 0)
-            continue;
-
-        if (buffer.size() != 0)
-        {
-            auto sz = buffer.size();
-            chunk_size = ((chunk_size + sz) <= in_size) ? chunk_size : (in_size - sz);
-            buffer.resize(sz + chunk_size);
-            std::memcpy(buffer.data() + sz, compressed_chunk, chunk_size);
-            compressed_chunk = buffer.data();
-            chunk_size = buffer.size();
-        }
-        else
-            chunk_size = (chunk_size <= in_size) ? chunk_size : in_size;
-
-#define BUFFER_TEST
-#ifdef BUFFER_TEST
-        static uint32_t n = 0;
-        n++;
-        std::size_t cache = chunk_size * 0.2;
-        if (std::rand() % 5 == 0 && cache != 0)
-            chunk_size -= cache;
-        else
-            cache = 0;
-#endif
-
         std::size_t dst_size = result.second - decompressed_size;
         std::size_t src_size = chunk_size;
         size_t size = LZ4F_decompress(dctx,
@@ -190,47 +214,7 @@ lz4f_decompress(InputStream &in,
         decompressed_size += dst_size;
         in_size -= src_size;
 
-#ifdef BUFFER_TEST
-        if (cache != 0 && src_size == chunk_size)
-        {
-            std::ofstream f("./log.txt", std::ofstream::app);
-            f << "buffer test pre " << n << " in " << in_size << " decompr " << decompressed_size
-              << " chunk " << chunk_size << " cache " << cache << " buffer " << buffer.size() << std::endl;
-            chunk_size += cache;
-            cache = 0;
-        }
-#endif
-
-        if (src_size != chunk_size)
-        {
-            auto *p = reinterpret_cast<uint8_t const *>(compressed_chunk) + src_size;
-            auto s = chunk_size - src_size;
-            if (buffer.size() > 0)
-            {
-                std::memmove(buffer.data(), p, s);
-                buffer.resize(s);
-            }
-            else
-            {
-                buffer.resize(s);
-                std::memcpy(buffer.data(), p, s);
-            }
-        }
-        else if (buffer.size() > 0)
-            buffer.resize(0);
-
-#ifdef BUFFER_TEST
-        if (cache != 0)
-        {
-            std::ofstream f("./log.txt", std::ofstream::app);
-            f << "buffer test post " << n << " in " << in_size << " decompr " << decompressed_size
-              << " chunk " << chunk_size << " cache " << cache << " buffer " << buffer.size() << std::endl;
-            auto *p = reinterpret_cast<uint8_t const *>(compressed_chunk) + chunk_size;
-            auto s = buffer.size();
-            buffer.resize(s + cache);
-            std::memcpy(buffer.data() + s, p, cache);
-        }
-#endif
+        update_buffer(src_size, compressed_chunk, chunk_size, buffer);
     }
 
     if (decompressed_size != result.second)
