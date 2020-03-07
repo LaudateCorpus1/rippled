@@ -80,7 +80,7 @@ public:
     template<typename T>
     void
     do_test(std::shared_ptr<T> proto, protocol::MessageType mt, uint16_t nbuffers, const char *msg,
-            bool log = true) {
+            bool log = false) {
 
         if (log)
             printf("=== compress/decompress %s ===\n", msg);
@@ -89,8 +89,8 @@ public:
         auto &buffer = m.getBuffer(true);
 
         if (log)
-            printf("==> compressed, original %d bytes, compressed %d bytes\n", m.getBuffer(false).size(),
-                   m.getBuffer(true).size());
+            printf("==> compressed, original %d bytes, compressed %d bytes\n",
+                   (int)m.getBuffer(false).size(), (int)m.getBuffer(true).size());
 
         std::vector<std::uint8_t> decompressed;
         boost::beast::multi_buffer buffers;
@@ -107,8 +107,8 @@ public:
 
         if (log)
             printf("==> parsed header: buffers size %d, compressed %d, algorithm %d, header size %d, payload size %d, buffer size %d\n",
-                   buffers.size(), header->compressed, header->algorithm, header->header_size,
-                   header->payload_wire_size, buffer.size());
+                   (int)buffers.size(), header->compressed, (int)header->algorithm, (int)header->header_size,
+                   (int)header->payload_wire_size, (int)buffer.size());
 
         if (!header->compressed) {
             if (log)
@@ -124,7 +124,7 @@ public:
         auto res = ripple::compression::decompress(stream, header->payload_wire_size,
                                                    [&decompressed, log](size_t size) {
                                                        if (log)
-                                                           printf("==> decompress requested %d bytes\n", size);
+                                                           printf("==> decompress requested %d bytes\n", (int)size);
                                                        decompressed.resize(size);
                                                        return decompressed.data();
                                                    });
