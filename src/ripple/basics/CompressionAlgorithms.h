@@ -190,8 +190,7 @@ lz4f_decompress(InputStream &in,
     std::size_t decompressed_size = 0;
     std::vector<std::uint8_t> buffer;
 
-    std::size_t const dctx_status = LZ4F_createDecompressionContext(&dctx, LZ4F_VERSION);
-    if (LZ4F_isError(dctx_status))
+    if (LZ4F_isError(LZ4F_createDecompressionContext(&dctx, LZ4F_VERSION)))
         do_throw("lz4f decompress: failed decompression context");
 
     result.second = get_original_size(in);
@@ -217,6 +216,9 @@ lz4f_decompress(InputStream &in,
 
         update_buffer(src_size, compressed_chunk, chunk_size, buffer);
     }
+
+    if (LZ4F_isError(LZ4F_freeDecompressionContext(dctx)))
+        do_throw("lz4 decompress: failed free decompression context");
 
     if (decompressed_size != result.second)
         do_throw("lz4 decompress: insufficient input data");
