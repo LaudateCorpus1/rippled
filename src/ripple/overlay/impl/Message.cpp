@@ -24,8 +24,13 @@
 
 namespace ripple {
 
-Message::Message (::google::protobuf::Message const& message, int type, bool compressionEnabled)
-    : mCategory(TrafficCount::categorize(message, type, false)), mType(type)
+/** Number of bytes in a message header. */
+std::size_t constexpr headerBytes = 6;
+
+Message::Message (::google::protobuf::Message const& message, int type)
+    : mCategory(TrafficCount::categorize(message, type, false))
+    , mCompressedRequested(false)
+    , mCompress([this, type]{compress(type);})
 {
 
 #if defined(GOOGLE_PROTOBUF_VERSION) && (GOOGLE_PROTOBUF_VERSION >= 3011000)
@@ -36,37 +41,21 @@ Message::Message (::google::protobuf::Message const& message, int type, bool com
 
     assert (messageBytes != 0);
 
-    /** Number of bytes in a message header. */
-    std::size_t constexpr headerBytes = 6;
-
     mBuffer.resize (headerBytes + messageBytes);
 
-    /*
-     * 47       Set to 1, indicates the message is compressed
-     * 46-44    Compression algorithm, value 1-7. Set to 1 to indicate LZ4 compression
-     * 43-42    Set to 0
-     * 41-16    Payload size
-     * 15-0	    Message Type
-     */
-    auto setHeader = [](uint8_t *ptr, decltype(messageBytes) messageBytes, int type, bool compressed=false,
-                        uint8_t compr_algorithm=ripple::compression::Algorithm::LZ4) {
-        uint8_t compression = (compressed?0xF0:0) & (0x80 | (compr_algorithm << 4));
-        *ptr++ = static_cast<std::uint8_t>(((messageBytes >> 24) | compression) & 0xFF);
-        *ptr++ = static_cast<std::uint8_t>((messageBytes >> 16) & 0xFF);
-        *ptr++ = static_cast<std::uint8_t>((messageBytes >> 8) & 0xFF);
-        *ptr++ = static_cast<std::uint8_t>(messageBytes & 0xFF);
-
-        *ptr++ = static_cast<std::uint8_t>((type >> 8) & 0xFF);
-        *ptr = static_cast<std::uint8_t> (type & 0xFF);
-    };
-
-    setHeader(mBuffer.data(), messageBytes, type);
+    setHeader(mBuffer.data(), messageBytes, type, Compressed::Off);
 
     if (messageBytes != 0)
         message.SerializeToArray(mBuffer.data() + headerBytes, messageBytes);
+}
+
+void
+Message::compress(int type)
+{
+    auto const messageBytes = mBuffer.size () - headerBytes;
 
     bool const compressible = [&]{
-        if (!compressionEnabled || messageBytes <= 70)
+        if (messageBytes <= 70)
             return false;
         switch(type)
         {
@@ -93,7 +82,7 @@ Message::Message (::google::protobuf::Message const& message, int type, bool com
                 [&](std::size_t in_size) { // size of required compressed buffer
                     mBufferCompressed.resize(in_size + headerBytes);
                     return (mBufferCompressed.data() + headerBytes);
-        });
+                });
 
         double ratio = 1.0 - (double)compressedSize / (double)messageBytes;
 
@@ -101,24 +90,27 @@ Message::Message (::google::protobuf::Message const& message, int type, bool com
         if (ratio > 0.0)
         {
             mBufferCompressed.resize(headerBytes + compressedSize);
-            setHeader(mBufferCompressed.data(), compressedSize, type, true);
+            setHeader(mBufferCompressed.data(), compressedSize, type, Compressed::On);
         }
         else
             mBufferCompressed.resize(0);
     }
+
+    mCompressedRequested = true;
 }
 
+/** Set payload header
+ * 47       Set to 1, indicates the message is compressed
+ * 46-44    Compression algorithm, value 1-7. Set to 1 to indicate LZ4 compression
+ * 43-42    Set to 0
+ * 41-16    Payload size
+ * 15-0	    Message Type
+*/
 void
-Message::compress()
+Message::setHeader(std::uint8_t *in, uint32_t messageBytes, int type,
+                   Compressed compressed, std::uint8_t comprAlgorithm)
 {
-
-}
-
-void
-Message::setHeader(std::uint8_t *in, uint32_t messageBytes, std::uint16_t type,
-                   bool isCompressed, std::uint8_t comprAlgorithm)
-{
-    uint8_t compression = (isCompressed?0xF0:0) & (0x80 | (comprAlgorithm << 4));
+    uint8_t compression = (compressed == Compressed::On?0xF0:0) & (0x80 | (comprAlgorithm << 4));
 
     *in++ = static_cast<std::uint8_t>(((messageBytes >> 24) | compression) & 0xFF);
     *in++ = static_cast<std::uint8_t>((messageBytes >> 16) & 0xFF);

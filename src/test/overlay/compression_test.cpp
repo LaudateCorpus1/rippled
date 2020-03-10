@@ -81,13 +81,14 @@ public:
 
         if (log)
             printf("=== compress/decompress %s ===\n", msg);
-        Message m(*proto, mt, true);
+        Message m(*proto, mt);
 
-        auto &buffer = m.getBuffer(true);
+        auto &buffer = m.getBuffer(Compressed::On);
 
         if (log)
             printf("==> compressed, original %d bytes, compressed %d bytes\n",
-                   (int)m.getBuffer(false).size(), (int)m.getBuffer(true).size());
+                   (int)m.getBuffer(Compressed::Off).size(),
+                   (int)m.getBuffer(Compressed::On).size());
 
         std::vector<std::uint8_t> decompressed;
         boost::beast::multi_buffer buffers;
@@ -128,7 +129,7 @@ public:
         auto const proto1 = std::make_shared<T>();
 
         BEAST_EXPECT(proto1->ParseFromArray(std::get<0>(res), std::get<1>(res)));
-        auto uncompressed = m.getBuffer(false);
+        auto uncompressed = m.getBuffer(Compressed::Off);
         BEAST_EXPECT(std::equal(uncompressed.begin() + header->header_size, uncompressed.end(),
                 decompressed.begin()));
         if (log)

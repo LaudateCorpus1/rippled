@@ -27,8 +27,13 @@ namespace ripple {
 
 namespace compression {
 
-enum Algorithm : uint8_t {
+enum Algorithm : std::uint8_t {
     LZ4 = 0x01
+};
+
+enum class Compressed : std::uint8_t {
+    On,
+    Off
 };
 
 template<typename InputStream, typename BufferFactory>

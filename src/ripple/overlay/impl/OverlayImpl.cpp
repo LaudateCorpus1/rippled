@@ -724,7 +724,7 @@ OverlayImpl::onManifests (
                 auto const toSkip = hashRouter.shouldRelay (hash);
                 if(toSkip)
                     foreach (send_if_not (
-                        std::make_shared<Message>(o, protocol::mtMANIFESTS, app_.config().COMPRESSION),
+                        std::make_shared<Message>(o, protocol::mtMANIFESTS),
                             peer_in_set (*toSkip)));
             }
             else
@@ -784,7 +784,7 @@ OverlayImpl::crawlShards(bool pubKey, std::uint32_t hops)
                 protocol::TMGetPeerShardInfo tmGPS;
                 tmGPS.set_hops(hops);
                 foreach(send_always(std::make_shared<Message>(
-                    tmGPS, protocol::mtGET_PEER_SHARD_INFO, app_.config().COMPRESSION)));
+                    tmGPS, protocol::mtGET_PEER_SHARD_INFO)));
 
                 if (csCV_.wait_for(l, timeout) == std::cv_status::timeout)
                 {
@@ -1172,7 +1172,7 @@ OverlayImpl::send (protocol::TMProposeSet& m)
 {
     if (setup_.expire)
         m.set_hops(0);
-    auto const sm = std::make_shared<Message>(m, protocol::mtPROPOSE_LEDGER, app_.config().COMPRESSION);
+    auto const sm = std::make_shared<Message>(m, protocol::mtPROPOSE_LEDGER);
     for_each([&](std::shared_ptr<PeerImp>&& p)
     {
         p->send(sm);
@@ -1183,7 +1183,7 @@ OverlayImpl::send (protocol::TMValidation& m)
 {
     if (setup_.expire)
         m.set_hops(0);
-    auto const sm = std::make_shared<Message>(m, protocol::mtVALIDATION, app_.config().COMPRESSION);
+    auto const sm = std::make_shared<Message>(m, protocol::mtVALIDATION);
     for_each([&](std::shared_ptr<PeerImp>&& p)
     {
         p->send(sm);
@@ -1206,7 +1206,7 @@ OverlayImpl::relay (protocol::TMProposeSet& m, uint256 const& uid)
         return;
     if (auto const toSkip = app_.getHashRouter().shouldRelay(uid))
     {
-        auto const sm = std::make_shared<Message>(m, protocol::mtPROPOSE_LEDGER, app_.config().COMPRESSION);
+        auto const sm = std::make_shared<Message>(m, protocol::mtPROPOSE_LEDGER);
         for_each([&](std::shared_ptr<PeerImp>&& p)
         {
             if (toSkip->find(p->id()) == toSkip->end())
@@ -1222,7 +1222,7 @@ OverlayImpl::relay (protocol::TMValidation& m, uint256 const& uid)
         return;
     if (auto const toSkip = app_.getHashRouter().shouldRelay(uid))
     {
-        auto const sm = std::make_shared<Message>(m, protocol::mtVALIDATION, app_.config().COMPRESSION);
+        auto const sm = std::make_shared<Message>(m, protocol::mtVALIDATION);
         for_each([&](std::shared_ptr<PeerImp>&& p)
         {
             if (toSkip->find(p->id()) == toSkip->end())

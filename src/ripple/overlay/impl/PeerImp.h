@@ -201,7 +201,7 @@ private:
     std::mutex mutable shardInfoMutex_;
     hash_map<PublicKey, ShardInfo> shardInfo_;
 
-    bool compressionEnabled_ = false;
+    Compressed compressionEnabled_ = Compressed::Off;
 
     friend class OverlayImpl;
 
@@ -416,11 +416,6 @@ public:
     boost::optional<hash_map<PublicKey, ShardInfo>>
     getPeerShardInfo() const;
 
-    bool compression() const override
-    {
-        return compressionEnabled_;
-    }
-
 private:
     void
     close();
@@ -607,7 +602,9 @@ PeerImp::PeerImp (Application& app, std::unique_ptr<stream_type>&& stream_ptr,
     , slot_ (std::move(slot))
     , response_(std::move(response))
     , headers_(response_)
-    , compressionEnabled_(headers_["Transfer-Encoding"] == "lz4" && app_.config().COMPRESSION)
+    , compressionEnabled_(
+            headers_["Transfer-Encoding"] == "lz4" && app_.config().COMPRESSION
+                ? Compressed::On : Compressed::Off)
 {
     read_buffer_.commit (boost::asio::buffer_copy(read_buffer_.prepare(
         boost::asio::buffer_size(buffers)), buffers));
@@ -640,7 +637,7 @@ PeerImp::sendEndpoints (FwdIt first, FwdIt last)
     }
     tm.set_version (2);
 
-    send (std::make_shared <Message> (tm, protocol::mtENDPOINTS, compression()));
+    send (std::make_shared <Message> (tm, protocol::mtENDPOINTS));
 }
 
 }

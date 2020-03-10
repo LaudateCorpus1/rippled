@@ -121,7 +121,6 @@ public:
     virtual bool hasTxSet (uint256 const& hash) const = 0;
     virtual void cycleStatus () = 0;
     virtual bool hasRange (std::uint32_t uMin, std::uint32_t uMax) = 0;
-    virtual bool compression () const = 0;
 };
 
 }

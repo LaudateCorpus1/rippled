@@ -278,7 +278,7 @@ ValidatorList::applyListAndBroadcast(
             // Can't use overlay.foreach here because we need to modify
             // the peer, and foreach provides a const&
             auto message =
-                std::make_shared<Message>(msg, protocol::mtVALIDATORLIST, compressionEnabled);
+                std::make_shared<Message>(msg, protocol::mtVALIDATORLIST);
             for (auto& peer : overlay.getActivePeers())
             {
                 if (toSkip->count(peer->id()) == 0 &&
