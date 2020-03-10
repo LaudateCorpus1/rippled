@@ -17,35 +17,32 @@
 */
 //==============================================================================
 
-#include <ripple/beast/unit_test.h>
-#include <ripple.pb.h>
-#include <ripple/overlay/Compression.h>
 #include <ripple/app/misc/Manifest.h>
-#include <ripple/protocol/PublicKey.h>
-#include <ripple/protocol/SecretKey.h>
-#include <ripple/protocol/HashPrefix.h>
-#include <ripple/protocol/Sign.h>
-#include <ripple/overlay/Message.h>
-//#include <ripple/overlay/Compression.h>
-#include <ripple/overlay/impl/ZeroCopyStream.h>
-#include <ripple/overlay/impl/ProtocolMessage.h>
-#include <boost/beast/core/multi_buffer.hpp>
-#include <boost/endian/conversion.hpp>
-#include <boost/asio/ip/address_v4.hpp>
-#include <ripple/core/TimeKeeper.h>
-#include <ripple/beast/utility/Journal.h>
-#include <test/jtx/Env.h>
-#include <test/jtx/Account.h>
-#include <test/jtx/WSClient.h>
-#include <test/jtx/pay.h>
-#include <ripple/protocol/jss.h>
-#include <ripple/shamap/SHAMapNodeID.h>
 #include <ripple/app/ledger/Ledger.h>
 #include <ripple/app/ledger/LedgerMaster.h>
-#include <test/jtx/amount.h>
-//#include <test/jtx/balance.h>
+#include <ripple/beast/unit_test.h>
+#include <ripple/beast/utility/Journal.h>
+#include <ripple/core/TimeKeeper.h>
+#include <ripple/overlay/Compression.h>
+#include <ripple/overlay/impl/ZeroCopyStream.h>
+#include <ripple/overlay/impl/ProtocolMessage.h>
+#include <ripple/overlay/Message.h>
 #include <ripple/protocol/digest.h>
-//#include <ripple/protocol/Sign.h>
+#include <ripple/protocol/HashPrefix.h>
+#include <ripple/protocol/jss.h>
+#include <ripple/protocol/PublicKey.h>
+#include <ripple/protocol/SecretKey.h>
+#include <ripple/protocol/Sign.h>
+#include <ripple/shamap/SHAMapNodeID.h>
+#include <ripple.pb.h>
+#include <boost/asio/ip/address_v4.hpp>
+#include <boost/beast/core/multi_buffer.hpp>
+#include <boost/endian/conversion.hpp>
+#include <test/jtx/Account.h>
+#include <test/jtx/amount.h>
+#include <test/jtx/Env.h>
+#include <test/jtx/pay.h>
+#include <test/jtx/WSClient.h>
 #include <algorithm>
 
 namespace ripple {
@@ -79,8 +76,8 @@ public:
 
     template<typename T>
     void
-    do_test(std::shared_ptr<T> proto, protocol::MessageType mt, uint16_t nbuffers, const char *msg,
-            bool log = false) {
+    doTest(std::shared_ptr<T> proto, protocol::MessageType mt, uint16_t nbuffers, const char *msg,
+           bool log = false) {
 
         if (log)
             printf("=== compress/decompress %s ===\n", msg);
@@ -225,30 +222,30 @@ public:
 
     std::shared_ptr<protocol::TMGetLedger>
     buildGetLedger() {
-        auto getledger = std::make_shared<protocol::TMGetLedger>();
-        getledger->set_itype(protocol::liTS_CANDIDATE);
-        getledger->set_ltype(protocol::TMLedgerType::ltACCEPTED);
+        auto getLedger = std::make_shared<protocol::TMGetLedger>();
+        getLedger->set_itype(protocol::liTS_CANDIDATE);
+        getLedger->set_ltype(protocol::TMLedgerType::ltACCEPTED);
         uint256 const hash(ripple::sha512Half(123456789));
-        getledger->set_ledgerhash(hash.begin(), hash.size());
-        getledger->set_ledgerseq(123456789);
+        getLedger->set_ledgerhash(hash.begin(), hash.size());
+        getLedger->set_ledgerseq(123456789);
         ripple::SHAMapNodeID sha(hash.data(), hash.size());
-        getledger->add_nodeids(sha.getRawString());
-        getledger->set_requestcookie(123456789);
-        getledger->set_querytype(protocol::qtINDIRECT);
-        getledger->set_querydepth(3);
-        return getledger;
+        getLedger->add_nodeids(sha.getRawString());
+        getLedger->set_requestcookie(123456789);
+        getLedger->set_querytype(protocol::qtINDIRECT);
+        getLedger->set_querydepth(3);
+        return getLedger;
     }
 
     std::shared_ptr<protocol::TMLedgerData>
     buildLedgerData(uint32_t n, Logs &logs) {
-        auto ledgerdata = std::make_shared<protocol::TMLedgerData>();
+        auto ledgerData = std::make_shared<protocol::TMLedgerData>();
         uint256 const hash(ripple::sha512Half(12356789));
-        ledgerdata->set_ledgerhash(hash.data(), hash.size());
-        ledgerdata->set_ledgerseq(123456789);
-        ledgerdata->set_type(protocol::TMLedgerInfoType::liAS_NODE);
-        ledgerdata->set_requestcookie(123456789);
-        ledgerdata->set_error(protocol::TMReplyError::reNO_LEDGER);
-        ledgerdata->mutable_nodes()->Reserve(n);
+        ledgerData->set_ledgerhash(hash.data(), hash.size());
+        ledgerData->set_ledgerseq(123456789);
+        ledgerData->set_type(protocol::TMLedgerInfoType::liAS_NODE);
+        ledgerData->set_requestcookie(123456789);
+        ledgerData->set_error(protocol::TMReplyError::reNO_LEDGER);
+        ledgerData->mutable_nodes()->Reserve(n);
         uint256 parentHash(0);
         for (int i = 0; i < n; i++) {
             LedgerInfo info;
@@ -265,25 +262,25 @@ public:
             parentHash = ledgerHash(info);
             Serializer nData;
             ripple::addRaw(info, nData);
-            ledgerdata->add_nodes()->set_nodedata(nData.getDataPtr(), nData.getLength());
+            ledgerData->add_nodes()->set_nodedata(nData.getDataPtr(), nData.getLength());
         }
 
-        return ledgerdata;
+        return ledgerData;
     }
 
     std::shared_ptr<protocol::TMGetObjectByHash>
     buildGetObjectByHash() {
-        auto getobject = std::make_shared<protocol::TMGetObjectByHash>();
+        auto getObject = std::make_shared<protocol::TMGetObjectByHash>();
 
-        getobject->set_type(protocol::TMGetObjectByHash_ObjectType::TMGetObjectByHash_ObjectType_otTRANSACTION);
-        getobject->set_query(true);
-        getobject->set_seq(123456789);
+        getObject->set_type(protocol::TMGetObjectByHash_ObjectType::TMGetObjectByHash_ObjectType_otTRANSACTION);
+        getObject->set_query(true);
+        getObject->set_seq(123456789);
         uint256 hash(ripple::sha512Half(123456789));
-        getobject->set_ledgerhash(hash.data(), hash.size());
-        getobject->set_fat(true);
+        getObject->set_ledgerhash(hash.data(), hash.size());
+        getObject->set_fat(true);
         for (int i = 0; i < 100; i++) {
             uint256 hash(ripple::sha512Half(i));
-            auto object = getobject->add_objects();
+            auto object = getObject->add_objects();
             object->set_hash(hash.data(), hash.size());
             ripple::SHAMapNodeID sha(hash.data(), hash.size());
             object->set_nodeid(sha.getRawString());
@@ -291,7 +288,7 @@ public:
             object->set_data("");
             object->set_ledgerseq(i);
         }
-        return getobject;
+        return getObject;
     }
 
     std::shared_ptr<protocol::TMValidatorList>
@@ -337,31 +334,31 @@ public:
         protocol::TMValidatorList validator_list;
 
         // 4.5KB
-        do_test(buildManifests(20), protocol::mtMANIFESTS, 4, "TMManifests20");
+        doTest(buildManifests(20), protocol::mtMANIFESTS, 4, "TMManifests20");
         // 22KB
-        do_test(buildManifests(100), protocol::mtMANIFESTS, 4, "TMManifests100");
+        doTest(buildManifests(100), protocol::mtMANIFESTS, 4, "TMManifests100");
         // 131B
-        do_test(buildEndpoints(10), protocol::mtENDPOINTS, 4, "TMEndpoints10");
+        doTest(buildEndpoints(10), protocol::mtENDPOINTS, 4, "TMEndpoints10");
         // 1.3KB
-        do_test(buildEndpoints(100), protocol::mtENDPOINTS, 4, "TMEndpoints100");
+        doTest(buildEndpoints(100), protocol::mtENDPOINTS, 4, "TMEndpoints100");
         // 242B
-        do_test(buildTransaction(*logs), protocol::mtTRANSACTION, 1, "TMTransaction");
+        doTest(buildTransaction(*logs), protocol::mtTRANSACTION, 1, "TMTransaction");
         // 87B
-        do_test(buildGetLedger(), protocol::mtGET_LEDGER, 1, "TMGetLedger");
+        doTest(buildGetLedger(), protocol::mtGET_LEDGER, 1, "TMGetLedger");
         // 61KB
-        do_test(buildLedgerData(500, *logs), protocol::mtLEDGER_DATA, 10, "TMLedgerData500");
+        doTest(buildLedgerData(500, *logs), protocol::mtLEDGER_DATA, 10, "TMLedgerData500");
         // 122 KB
-        do_test(buildLedgerData(1000, *logs), protocol::mtLEDGER_DATA, 20, "TMLedgerData1000");
+        doTest(buildLedgerData(1000, *logs), protocol::mtLEDGER_DATA, 20, "TMLedgerData1000");
         // 1.2MB
-        do_test(buildLedgerData(10000, *logs), protocol::mtLEDGER_DATA, 50, "TMLedgerData10000");
+        doTest(buildLedgerData(10000, *logs), protocol::mtLEDGER_DATA, 50, "TMLedgerData10000");
         // 12MB
-        do_test(buildLedgerData(100000, *logs), protocol::mtLEDGER_DATA, 100, "TMLedgerData100000");
+        doTest(buildLedgerData(100000, *logs), protocol::mtLEDGER_DATA, 100, "TMLedgerData100000");
         // 61MB
-        do_test(buildLedgerData(500000, *logs), protocol::mtLEDGER_DATA, 100, "TMLedgerData500000");
+        doTest(buildLedgerData(500000, *logs), protocol::mtLEDGER_DATA, 100, "TMLedgerData500000");
         // 7.7KB
-        do_test(buildGetObjectByHash(), protocol::mtGET_OBJECTS, 4, "TMGetObjectByHash");
+        doTest(buildGetObjectByHash(), protocol::mtGET_OBJECTS, 4, "TMGetObjectByHash");
         // 895B
-        do_test(buildValidatorList(), protocol::mtVALIDATORLIST, 4, "TMValidatorList");
+        doTest(buildValidatorList(), protocol::mtVALIDATORLIST, 4, "TMValidatorList");
     }
 
     void run() override {

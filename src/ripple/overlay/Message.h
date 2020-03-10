@@ -20,6 +20,7 @@
 #ifndef RIPPLE_OVERLAY_MESSAGE_H_INCLUDED
 #define RIPPLE_OVERLAY_MESSAGE_H_INCLUDED
 
+#include <ripple/overlay/Compression.h>
 #include <ripple/protocol/messages.h>
 #include <boost/asio/buffer.hpp>
 #include <boost/asio/buffers_iterator.hpp>
@@ -48,14 +49,14 @@ namespace ripple {
 class Message : public std::enable_shared_from_this <Message>
 {
 public:
-    Message (::google::protobuf::Message const& message, int type, bool compression_enabled);
+    Message (::google::protobuf::Message const& message, int type, bool compressionEnabled);
 
 public:
     /** Retrieve the packed message data. */
     std::vector <uint8_t> const&
-    getBuffer (bool get_compressed) const
+    getBuffer (bool getCompressed) const
     {
-        if (get_compressed && mBufferCompressed.size() > 0)
+        if (getCompressed && mBufferCompressed.size() > 0)
             return mBufferCompressed;
         else
             return mBuffer;
@@ -72,6 +73,11 @@ private:
     std::vector <uint8_t> mBuffer;
     std::vector <uint8_t> mBufferCompressed;
     std::size_t mCategory;
+    std::uint16_t mType;
+
+    void setHeader(std::uint8_t *in, uint32_t messageBytes, std::uint16_t type = 0xFF,
+            bool isCompressed = false, std::uint8_t comprAlgorithm = ripple::compression::Algorithm::LZ4);
+    void compress();
 };
 
 }

@@ -22,9 +22,9 @@
 
 #include <ripple/basics/ByteUtilities.h>
 #include <ripple/protocol/messages.h>
+#include <ripple/overlay/Compression.h>
 #include <ripple/overlay/Message.h>
 #include <ripple/overlay/impl/ZeroCopyStream.h>
-#include <ripple/overlay/Compression.h>
 #include <boost/asio/buffer.hpp>
 #include <boost/asio/buffers_iterator.hpp>
 #include <boost/system/error_code.hpp>
@@ -94,16 +94,9 @@ struct MessageHeader
 
 template<typename BufferSequence>
 auto
-buffers_begin(BufferSequence const &bufs)
+buffersBegin(BufferSequence const &bufs)
 {
     return boost::asio::buffers_iterator<BufferSequence, std::uint8_t>::begin(bufs);
-}
-
-template<typename BufferSequence>
-auto
-buffers_end(BufferSequence const &bufs)
-{
-    return boost::asio::buffers_iterator<BufferSequence, std::uint8_t>::end(bufs);
 }
 
 template <class BufferSequence>
@@ -111,7 +104,7 @@ boost::optional<MessageHeader> parseMessageHeader(
     BufferSequence const& bufs,
     std::size_t size)
 {
-    auto iter = buffers_begin(bufs);
+    auto iter = buffersBegin(bufs);
 
     MessageHeader hdr;
     hdr.compressed = (*iter & 0x80) == 0x80;
@@ -156,21 +149,18 @@ invoke (
 
     if (header.compressed)
     {
-        std::vector<std::uint8_t> serialized_message;
+        std::vector<std::uint8_t> serializedMessage;
 
-        auto res = ripple::compression::decompress(
+        auto [payload, payloadSize] = ripple::compression::decompress(
             stream,
             header.payload_wire_size,
-            [&serialized_message](std::size_t size)
+            [&serializedMessage](std::size_t size) // size of required decompressed buffer
             {
-                serialized_message.resize(size);
-                return serialized_message.data();
+                serializedMessage.resize(size);
+                return serializedMessage.data();
             }, header.algorithm);
 
-        auto *payload = std::get<0>(res);
-        auto payload_size = std::get<1>(res);
-
-        if (!m->ParseFromArray(payload, payload_size))
+        if (!m->ParseFromArray(payload, payloadSize))
             return false;
     }
     else if (!m->ParseFromZeroCopyStream(&stream))
