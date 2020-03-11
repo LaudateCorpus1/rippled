@@ -149,18 +149,18 @@ invoke (
 
     if (header.compressed)
     {
-        std::vector<std::uint8_t> serializedMessage;
+        std::vector<std::uint8_t> payload;
 
-        auto [payload, payloadSize] = ripple::compression::decompress(
+        auto payloadSize = ripple::compression::decompress(
             stream,
             header.payload_wire_size,
-            [&serializedMessage](std::size_t size) // size of required decompressed buffer
+            [&payload](std::size_t size) // size of required decompressed buffer
             {
-                serializedMessage.resize(size);
-                return serializedMessage.data();
+                payload.resize(size);
+                return payload.data();
             }, header.algorithm);
 
-        if (!m->ParseFromArray(payload, payloadSize))
+        if (!m->ParseFromArray(payload.data(), payloadSize))
             return false;
     }
     else if (!m->ParseFromZeroCopyStream(&stream))

@@ -119,7 +119,7 @@ public:
         ZeroCopyInputStream stream(buffers.data());
         stream.Skip(header->header_size);
 
-        auto res = ripple::compression::decompress(stream, header->payload_wire_size,
+        auto decompressedSize = ripple::compression::decompress(stream, header->payload_wire_size,
                                                    [&decompressed, log](size_t size) {
                                                        if (log)
                                                            printf("==> decompress requested %d bytes\n", (int)size);
@@ -128,7 +128,7 @@ public:
                                                    });
         auto const proto1 = std::make_shared<T>();
 
-        BEAST_EXPECT(proto1->ParseFromArray(std::get<0>(res), std::get<1>(res)));
+        BEAST_EXPECT(proto1->ParseFromArray(decompressed.data(), decompressedSize));
         auto uncompressed = m.getBuffer(Compressed::Off);
         BEAST_EXPECT(std::equal(uncompressed.begin() + header->header_size, uncompressed.end(),
                 decompressed.begin()));

@@ -76,7 +76,7 @@ Message::compress(int type)
     {
         auto *payload = static_cast<void const*>(mBuffer.data() + headerBytes);
 
-        auto [_, compressedSize] = ripple::compression::compress(
+        auto compressedSize = ripple::compression::compress(
                 payload,
                 messageBytes,
                 [&](std::size_t in_size) { // size of required compressed buffer

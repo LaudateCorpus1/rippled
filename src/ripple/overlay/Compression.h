@@ -37,7 +37,7 @@ enum class Compressed : std::uint8_t {
 };
 
 template<typename InputStream, typename BufferFactory>
-std::pair<void const *, std::size_t>
+std::size_t
 decompress(InputStream& in,
            std::size_t in_size, BufferFactory &&bf, uint8_t algorithm = Algorithm::LZ4) {
     if (algorithm == Algorithm::LZ4)
@@ -48,7 +48,7 @@ decompress(InputStream& in,
 }
 
 template<class BufferFactory>
-std::pair<void const *, std::size_t>
+std::size_t
 compress(void const *in,
          std::size_t in_size, BufferFactory &&bf, uint8_t algorithm = Algorithm::LZ4) {
     if (algorithm == Algorithm::LZ4)

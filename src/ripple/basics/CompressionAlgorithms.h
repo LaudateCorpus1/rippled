@@ -40,10 +40,10 @@ inline void doThrow(const char *message)
  * @param in Data to compress
  * @param inSize Size of the data
  * @param bf Compressed buffer allocator
- * @return Pointer and size of compressed data
+ * @return Size of compressed data
  */
 template<typename BufferFactory>
-std::pair<void const*, std::size_t>
+std::size_t
 lz4fCompress(void const * in,
              std::size_t inSize, BufferFactory&& bf)
 {
@@ -69,7 +69,7 @@ lz4fCompress(void const * in,
     if (LZ4F_isError(compressedSize))
         doThrow("lz4f failed compress update");
 
-    return {compressed, originalSizeBytes + compressedSize};
+    return originalSizeBytes + compressedSize;
 }
 
 /** Copy data from the input stream.
@@ -216,10 +216,10 @@ updateBuffer(std::size_t srcSize,
  * @param in Input source stream
  * @param inSize Size of compressed data
  * @param bf Decompressed buffer allocator
- * @return Pointer and size of decompressed data
+ * @return Size of decompressed data
  */
 template<typename InputStream, typename BufferFactory>
-std::pair<void const*, std::size_t>
+std::size_t
 lz4fDecompress(InputStream &in,
                std::size_t inSize, BufferFactory&& bf)
 {
@@ -262,7 +262,7 @@ lz4fDecompress(InputStream &in,
     if (decompressedSize != originalSize)
         doThrow("lz4 decompress: insufficient input data");
 
-    return {decompressed, originalSize};
+    return originalSize;
 }
 
 } // compression
