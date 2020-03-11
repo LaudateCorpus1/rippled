@@ -30,7 +30,7 @@ std::size_t constexpr headerBytes = 6;
 Message::Message (::google::protobuf::Message const& message, int type)
     : mCategory(TrafficCount::categorize(message, type, false))
     , mCompressedRequested(false)
-    , mCompress([this, type]{compress(type);})
+    , mType(type)
 {
 
 #if defined(GOOGLE_PROTOBUF_VERSION) && (GOOGLE_PROTOBUF_VERSION >= 3011000)

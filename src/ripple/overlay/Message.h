@@ -63,13 +63,13 @@ public:
      * @return Payload buffer
      */
     std::vector <uint8_t> const&
-    getBuffer (Compressed compressed) const
+    getBuffer (Compressed compressed)
     {
         if (compressed == Compressed::Off)
             return mBuffer;
 
         if (!mCompressedRequested)
-            mCompress();
+            compress(mType);
 
         if (mBufferCompressed.size() > 0)
             return mBufferCompressed;
@@ -89,7 +89,7 @@ private:
     std::vector <uint8_t> mBufferCompressed;
     std::size_t mCategory;
     bool mCompressedRequested;
-    const std::function<void()> mCompress;
+    int mType;
 
     /** Set the payload header
      * @param in Pointer to the payload
