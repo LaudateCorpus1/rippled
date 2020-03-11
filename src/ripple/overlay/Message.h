@@ -69,7 +69,7 @@ public:
             return mBuffer;
 
         if (!mCompressedRequested)
-            compress(mType);
+            compress();
 
         if (mBufferCompressed.size() > 0)
             return mBufferCompressed;
@@ -89,7 +89,6 @@ private:
     std::vector <uint8_t> mBufferCompressed;
     std::size_t mCategory;
     bool mCompressedRequested;
-    int mType;
 
     /** Set the payload header
      * @param in Pointer to the payload
@@ -101,8 +100,21 @@ private:
     void setHeader(std::uint8_t *in, uint32_t messageBytes, int type,
             Compressed compressed,
             std::uint8_t comprAlgorithm = ripple::compression::Algorithm::LZ4);
+
     /** Try to compress the payload. */
-    void compress(int type);
+    void compress();
+
+    /** Get the message type from the payload header.
+     * First four bytes are the compression/algorithm flag and the payload size.
+     * Next two bytes are the message type
+     * @param in Payload header pointer
+     * @return Message type
+     */
+    int getType(std::uint8_t const *in) const
+    {
+        int type = (*(in + 4) << 8) + *(in + 5);
+        return type;
+    }
 };
 
 }

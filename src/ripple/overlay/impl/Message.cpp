@@ -30,7 +30,6 @@ std::size_t constexpr headerBytes = 6;
 Message::Message (::google::protobuf::Message const& message, int type)
     : mCategory(TrafficCount::categorize(message, type, false))
     , mCompressedRequested(false)
-    , mType(type)
 {
 
 #if defined(GOOGLE_PROTOBUF_VERSION) && (GOOGLE_PROTOBUF_VERSION >= 3011000)
@@ -50,9 +49,11 @@ Message::Message (::google::protobuf::Message const& message, int type)
 }
 
 void
-Message::compress(int type)
+Message::compress()
 {
     auto const messageBytes = mBuffer.size () - headerBytes;
+
+    auto type = getType(mBuffer.data());
 
     bool const compressible = [&]{
         if (messageBytes <= 70)
