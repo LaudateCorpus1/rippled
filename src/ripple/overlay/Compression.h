@@ -40,22 +40,36 @@ template<typename InputStream, typename BufferFactory>
 std::size_t
 decompress(InputStream& in,
            std::size_t in_size, BufferFactory &&bf, uint8_t algorithm = Algorithm::LZ4) {
-    if (algorithm == Algorithm::LZ4)
-        return ripple::compression_algorithms::lz4fDecompress(in, in_size, bf);
-    else
-        Throw<std::runtime_error>(
-                "decompress: invalid compression algorithm");
+    try
+    {
+        if (algorithm == Algorithm::LZ4)
+            return ripple::compression_algorithms::lz4fDecompress(in, in_size, bf);
+        else
+            Throw<std::runtime_error>(
+                    "decompress: invalid compression algorithm");
+    }
+    catch (...)
+    {
+        return 0;
+    }
 }
 
 template<class BufferFactory>
 std::size_t
 compress(void const *in,
          std::size_t in_size, BufferFactory &&bf, uint8_t algorithm = Algorithm::LZ4) {
-    if (algorithm == Algorithm::LZ4)
-        return ripple::compression_algorithms::lz4fCompress(in, in_size, bf);
-    else
-        Throw<std::runtime_error>(
-                "compress: invalid compression algorithm");
+    try
+    {
+        if (algorithm == Algorithm::LZ4)
+            return ripple::compression_algorithms::lz4fCompress(in, in_size, bf);
+        else
+            Throw<std::runtime_error>(
+                    "compress: invalid compression algorithm");
+    }
+    catch (...)
+    {
+        return 0;
+    }
 }
 } // compression
 

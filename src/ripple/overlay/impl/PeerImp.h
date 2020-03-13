@@ -603,7 +603,7 @@ PeerImp::PeerImp (Application& app, std::unique_ptr<stream_type>&& stream_ptr,
     , response_(std::move(response))
     , headers_(response_)
     , compressionEnabled_(
-            headers_["Transfer-Encoding"] == "lz4" && app_.config().COMPRESSION
+            headers_["X-Offer-Compression"] == "lz4" && app_.config().COMPRESSION
                 ? Compressed::On : Compressed::Off)
 {
     read_buffer_.commit (boost::asio::buffer_copy(read_buffer_.prepare(

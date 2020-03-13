@@ -160,7 +160,7 @@ invoke (
                 return payload.data();
             }, header.algorithm);
 
-        if (!m->ParseFromArray(payload.data(), payloadSize))
+        if (payloadSize == 0 || !m->ParseFromArray(payload.data(), payloadSize))
             return false;
     }
     else if (!m->ParseFromZeroCopyStream(&stream))

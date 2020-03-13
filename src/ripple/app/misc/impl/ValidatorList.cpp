@@ -249,8 +249,7 @@ ValidatorList::applyListAndBroadcast(
     std::string siteUri,
     uint256 const& hash,
     Overlay& overlay,
-    HashRouter& hashRouter,
-    bool compressionEnabled)
+    HashRouter& hashRouter)
 {
     auto const result = applyList(manifest, blob, signature,
         version, std::move(siteUri), hash);

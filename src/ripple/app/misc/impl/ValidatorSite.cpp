@@ -402,8 +402,7 @@ ValidatorSite::parseJsonResponse (
         uri,
         hash,
         app_.overlay(),
-        app_.getHashRouter(),
-        app_.config().COMPRESSION);
+        app_.getHashRouter());
     auto const disp = applyResult.disposition;
 
     sites_[siteIdx].lastRefreshStatus.emplace(

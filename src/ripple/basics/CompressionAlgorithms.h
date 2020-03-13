@@ -40,7 +40,7 @@ inline void doThrow(const char *message)
  * @param in Data to compress
  * @param inSize Size of the data
  * @param bf Compressed buffer allocator
- * @return Size of compressed data
+ * @return Size of compressed data, or zero if failed to compress
  */
 template<typename BufferFactory>
 std::size_t
@@ -161,10 +161,10 @@ nextChunk(InputStream &in, std::size_t inSize,
 {
     bool res = in.Next(&compressedChunk, &chunkSize);
 
-    if (!res && buffer.size() == 0)
+    if (!res && buffer.empty())
         return false;
 
-    if (buffer.size() != 0)
+    if (!buffer.empty())
     {
         auto sz = buffer.size();
         chunkSize = ((chunkSize + sz) <= inSize) ? chunkSize : (inSize - sz);
@@ -194,7 +194,7 @@ updateBuffer(std::size_t srcSize,
     {
         auto *p = reinterpret_cast<uint8_t const *>(compressedChunk) + srcSize;
         auto s = chunkSize - srcSize;
-        if (buffer.size() > 0)
+        if (!buffer.empty())
         {
             std::memmove(buffer.data(), p, s);
             buffer.resize(s);
@@ -205,7 +205,7 @@ updateBuffer(std::size_t srcSize,
             std::memcpy(buffer.data(), p, s);
         }
     }
-    else if (buffer.size() > 0)
+    else if (!buffer.empty())
         buffer.resize(0);
 }
 
@@ -216,7 +216,7 @@ updateBuffer(std::size_t srcSize,
  * @param in Input source stream
  * @param inSize Size of compressed data
  * @param bf Decompressed buffer allocator
- * @return Size of decompressed data
+ * @return Size of decompressed data or zero if failed to decompress
  */
 template<typename InputStream, typename BufferFactory>
 std::size_t

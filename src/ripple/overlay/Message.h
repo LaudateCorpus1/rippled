@@ -66,29 +66,30 @@ public:
     getBuffer (Compressed compressed)
     {
         if (compressed == Compressed::Off)
-            return mBuffer;
+            return buffer_;
 
-        if (!mCompressedRequested)
+        if (!alreadyRequested_)
             compress();
 
-        if (mBufferCompressed.size() > 0)
-            return mBufferCompressed;
+        if (bufferCompressed_.size() > 0)
+            return bufferCompressed_;
         else
-            return mBuffer;
+            return buffer_;
     }
 
     /** Get the traffic category */
     std::size_t
     getCategory () const
     {
-        return mCategory;
+        return category_;
     }
 
 private:
-    std::vector <uint8_t> mBuffer;
-    std::vector <uint8_t> mBufferCompressed;
-    std::size_t mCategory;
-    bool mCompressedRequested;
+    std::vector <uint8_t> buffer_;
+    std::vector <uint8_t> bufferCompressed_;
+    std::size_t category_;
+    std::atomic_bool alreadyRequested_;
+    std::mutex  mutex_;
 
     /** Set the payload header
      * @param in Pointer to the payload
@@ -101,7 +102,10 @@ private:
             Compressed compressed,
             std::uint8_t comprAlgorithm = ripple::compression::Algorithm::LZ4);
 
-    /** Try to compress the payload. */
+    /** Try to compress the payload.
+     * Can be called concurrently by multiple peers but is compressed once (via mutex_).
+     * If the message is not compressible then the serialized buffer_ is used.
+     */
     void compress();
 
     /** Get the message type from the payload header.
@@ -112,7 +116,7 @@ private:
      */
     int getType(std::uint8_t const *in) const
     {
-        int type = (*(in + 4) << 8) + *(in + 5);
+        int type = ((int)*(in + 4) << 8) + *(in + 5);
         return type;
     }
 };

@@ -759,7 +759,7 @@ PeerImp::makeResponse (bool crawl,
     resp.insert("Server", BuildInfo::getFullVersionString());
     resp.insert("Crawl", crawl ? "public" : "private");
     if (req["Accept-Encoding"] == "lz4" && app_.config().COMPRESSION)
-        resp.insert("Transfer-Encoding", "lz4");
+        resp.insert("X-Offer-Compression", "lz4");
 
     buildHandshake(resp, sharedValue, overlay_.setup().networkID,
         overlay_.setup().public_ip, remote_ip, app_);
@@ -2051,8 +2051,7 @@ PeerImp::onMessage (std::shared_ptr <protocol::TMValidatorList> const& m)
             remote_address_.to_string(),
             hash,
             app_.overlay(),
-            app_.getHashRouter(),
-            app_.config().COMPRESSION);
+            app_.getHashRouter());
         auto const disp = applyResult.disposition;
 
         JLOG(p_journal_.debug()) << "Processed validator list from " <<

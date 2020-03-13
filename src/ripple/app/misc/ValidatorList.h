@@ -257,8 +257,7 @@ public:
         std::string siteUri,
         uint256 const& hash,
         Overlay& overlay,
-        HashRouter& hashRouter,
-        bool compressionEnabled);
+        HashRouter& hashRouter);
 
     /** Apply published list of public keys
 

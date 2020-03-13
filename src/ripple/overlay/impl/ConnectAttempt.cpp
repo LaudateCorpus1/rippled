@@ -276,7 +276,7 @@ ConnectAttempt::makeRequest (bool crawl, bool compressionEnabled) -> request_typ
     m.insert ("Connect-As", "Peer");
     m.insert ("Crawl", crawl ? "public" : "private");
     if (compressionEnabled)
-        m.insert("Accept-Encoding", "lz4");
+        m.insert("X-Offer-Compression", "lz4");
     return m;
 }
 

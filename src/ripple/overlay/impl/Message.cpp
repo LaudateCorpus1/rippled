@@ -28,8 +28,8 @@ namespace ripple {
 std::size_t constexpr headerBytes = 6;
 
 Message::Message (::google::protobuf::Message const& message, int type)
-    : mCategory(TrafficCount::categorize(message, type, false))
-    , mCompressedRequested(false)
+    : category_(TrafficCount::categorize(message, type, false))
+    , alreadyRequested_(false)
 {
 
 #if defined(GOOGLE_PROTOBUF_VERSION) && (GOOGLE_PROTOBUF_VERSION >= 3011000)
@@ -40,20 +40,28 @@ Message::Message (::google::protobuf::Message const& message, int type)
 
     assert (messageBytes != 0);
 
-    mBuffer.resize (headerBytes + messageBytes);
+    buffer_.resize (headerBytes + messageBytes);
 
-    setHeader(mBuffer.data(), messageBytes, type, Compressed::Off);
+    setHeader(buffer_.data(), messageBytes, type, Compressed::Off);
 
     if (messageBytes != 0)
-        message.SerializeToArray(mBuffer.data() + headerBytes, messageBytes);
+        message.SerializeToArray(buffer_.data() + headerBytes, messageBytes);
 }
 
 void
 Message::compress()
 {
-    auto const messageBytes = mBuffer.size () - headerBytes;
+    std::lock_guard<std::mutex> lock(mutex_);
 
-    auto type = getType(mBuffer.data());
+    // 'redundant' check because multiple threads may call compress().
+    // But once the message is already compressed or tried being compressed
+    // getBuffer() call  will not call compress ()
+    if (alreadyRequested_)
+        return;
+
+    auto const messageBytes = buffer_.size () - headerBytes;
+
+    auto type = getType(buffer_.data());
 
     bool const compressible = [&]{
         if (messageBytes <= 70)
@@ -68,36 +76,43 @@ Message::compress()
             case protocol::mtGET_OBJECTS:
             case protocol::mtVALIDATORLIST:
                 return true;
-            default:
-                return false;
+            case protocol::mtPING:
+            case protocol::mtCLUSTER:
+            case protocol::mtPROPOSE_LEDGER:
+            case protocol::mtSTATUS_CHANGE:
+            case protocol::mtHAVE_SET:
+            case protocol::mtVALIDATION:
+            case protocol::mtGET_SHARD_INFO:
+            case protocol::mtSHARD_INFO:
+            case protocol::mtGET_PEER_SHARD_INFO:
+            case protocol::mtPEER_SHARD_INFO:
+                break;
         }
+        return false;
     }();
 
     if (compressible)
     {
-        auto *payload = static_cast<void const*>(mBuffer.data() + headerBytes);
+        auto *payload = static_cast<void const*>(buffer_.data() + headerBytes);
 
         auto compressedSize = ripple::compression::compress(
                 payload,
                 messageBytes,
                 [&](std::size_t in_size) { // size of required compressed buffer
-                    mBufferCompressed.resize(in_size + headerBytes);
-                    return (mBufferCompressed.data() + headerBytes);
+                    bufferCompressed_.resize(in_size + headerBytes);
+                    return (bufferCompressed_.data() + headerBytes);
                 });
 
-        double ratio = 1.0 - (double)compressedSize / (double)messageBytes;
-
-        // TODO should we have min acceptable compression ratio?
-        if (ratio > 0.0)
+        if (compressedSize < messageBytes)
         {
-            mBufferCompressed.resize(headerBytes + compressedSize);
-            setHeader(mBufferCompressed.data(), compressedSize, type, Compressed::On);
+            bufferCompressed_.resize(headerBytes + compressedSize);
+            setHeader(bufferCompressed_.data(), compressedSize, type, Compressed::On);
         }
         else
-            mBufferCompressed.resize(0);
+            bufferCompressed_.resize(0);
     }
 
-    mCompressedRequested = true;
+    alreadyRequested_ = true;
 }
 
 /** Set payload header
