@@ -54,7 +54,7 @@ lz4fCompress(void const * in,
 
     auto const originalSizeBytes = write_varint(vi.data(), inSize);
 
-    std::size_t const outCapacity = LZ4F_compressFrameBound(inSize, NULL);
+    std::size_t const outCapacity = LZ4F_compressFrameBound(inSize, nullptr);
 
     auto* compressed = bf(originalSizeBytes + outCapacity);
 
@@ -65,7 +65,7 @@ lz4fCompress(void const * in,
             outCapacity,
             in,
             inSize,
-            NULL);
+            nullptr);
     if (LZ4F_isError(compressedSize))
         doThrow("lz4f failed compress update");
 
@@ -84,7 +84,7 @@ template<typename InputStream>
 bool
 copyStream(InputStream& in, std::uint8_t* dst, int size, std::vector<int> &usedSize)
 {
-    const void * data = NULL;
+    const void * data = nullptr;
     int dataSize = 0;
     int copied = 0;
 
@@ -110,7 +110,7 @@ getOriginalSize(InputStream& in)
 {
     std::array<std::uint8_t, varint_traits<std::uint32_t>::max> vi;
     std::size_t originalSize = 0;
-    const void * data = NULL;
+    const void * data = nullptr;
     int dataSize = 0;
     std::vector<int> usedSize;
 
@@ -224,9 +224,9 @@ lz4fDecompress(InputStream &in,
                std::size_t inSize, BufferFactory&& bf)
 {
     LZ4F_dctx_s* dctx;
-    void const * compressedChunk = NULL;
+    void const * compressedChunk = nullptr;
     int chunkSize = 0;
-    std::uint8_t * decompressed = NULL;
+    std::uint8_t * decompressed = nullptr;
     std::size_t decompressedSize = 0;
     std::vector<std::uint8_t> buffer;
 
@@ -246,7 +246,7 @@ lz4fDecompress(InputStream &in,
                                       &dstSize,
                                       compressedChunk,
                                       &srcSize,
-                                      NULL);
+                                      nullptr);
         if (LZ4F_isError(size) || srcSize == 0)
             doThrow("lz4f decompress: failed");
 
