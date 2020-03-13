@@ -93,7 +93,7 @@ Message::compress()
 
     if (compressible)
     {
-        auto *payload = static_cast<void const*>(buffer_.data() + headerBytes);
+        auto payload = static_cast<void const*>(buffer_.data() + headerBytes);
 
         auto compressedSize = ripple::compression::compress(
                 payload,
@@ -123,7 +123,7 @@ Message::compress()
  * 15-0	    Message Type
 */
 void
-Message::setHeader(std::uint8_t *in, uint32_t messageBytes, int type,
+Message::setHeader(std::uint8_t* in, uint32_t messageBytes, int type,
                    Compressed compressed, std::uint8_t comprAlgorithm)
 {
     uint8_t compression = (compressed == Compressed::On?0xF0:0) & (0x80 | (comprAlgorithm << 4));

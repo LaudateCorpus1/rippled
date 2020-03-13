@@ -97,12 +97,12 @@ private:
      * @param compressed Compression flag - Compressed::On if the payload is compressed
      * @param comprAlgorithm Compression algorithm used in compression, currently LZ4 only
      */
-    void setHeader(std::uint8_t *in, uint32_t messageBytes, int type,
+    void setHeader(std::uint8_t* in, uint32_t messageBytes, int type,
             Compressed compressed,
             std::uint8_t comprAlgorithm = ripple::compression::Algorithm::LZ4);
 
     /** Try to compress the payload.
-     * Can be called concurrently by multiple peers but is compressed once (via mutex_).
+     * Can be called concurrently by multiple peers but is compressed once (mutex_).
      * If the message is not compressible then the serialized buffer_ is used.
      */
     void compress();
@@ -113,7 +113,7 @@ private:
      * @param in Payload header pointer
      * @return Message type
      */
-    int getType(std::uint8_t const *in) const
+    int getType(std::uint8_t const* in) const
     {
         int type = ((int)*(in + 4) << 8) + *(in + 5);
         return type;

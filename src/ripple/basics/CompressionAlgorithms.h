@@ -30,13 +30,17 @@ namespace ripple {
 
 namespace compression_algorithms {
 
+/** Convenience wrapper for Throw
+ * @param message Message to log/throw
+ */
 inline void doThrow(const char *message)
 {
     Throw<std::runtime_error>(message);
 }
 
 /** LZ4 frame compression. Compressed data is prefixed with varint header containing the size of the original data.
- * @tparam BufferFactory Callable object or lambda. Takes the required buffer size and returns buffer pointer.
+ * @tparam BufferFactory Callable object or lambda.
+ *     Takes the requested buffer size and returns allocated buffer pointer.
  * @param in Data to compress
  * @param inSize Size of the data
  * @param bf Compressed buffer allocator
@@ -44,7 +48,7 @@ inline void doThrow(const char *message)
  */
 template<typename BufferFactory>
 std::size_t
-lz4fCompress(void const * in,
+lz4fCompress(void const* in,
              std::size_t inSize, BufferFactory&& bf)
 {
     std::array<std::uint8_t, varint_traits<std::uint32_t>::max> vi;
@@ -56,7 +60,8 @@ lz4fCompress(void const * in,
 
     std::size_t const outCapacity = LZ4F_compressFrameBound(inSize, nullptr);
 
-    auto* compressed = bf(originalSizeBytes + outCapacity);
+    // Request the caller to allocate and return the buffer to hold compressed data
+    auto compressed = bf(originalSizeBytes + outCapacity);
 
     std::memcpy(compressed, vi.data(), originalSizeBytes);
 
@@ -72,7 +77,8 @@ lz4fCompress(void const * in,
     return originalSizeBytes + compressedSize;
 }
 
-/** Copy data from the input stream.
+/** Copy data from the input stream if the payload header containing
+ * the size of the uncompressed data is split between multiple chunks.
  * @tparam InputStream ZeroCopyInputStream
  * @param in Source input stream
  * @param dst Destination buffer
@@ -84,7 +90,7 @@ template<typename InputStream>
 bool
 copyStream(InputStream& in, std::uint8_t* dst, int size, std::vector<int> &usedSize)
 {
-    const void * data = nullptr;
+    const void* data = nullptr;
     int dataSize = 0;
     int copied = 0;
 
@@ -110,7 +116,7 @@ getOriginalSize(InputStream& in)
 {
     std::array<std::uint8_t, varint_traits<std::uint32_t>::max> vi;
     std::size_t originalSize = 0;
-    const void * data = nullptr;
+    const void* data = nullptr;
     int dataSize = 0;
     std::vector<int> usedSize;
 
@@ -119,7 +125,7 @@ getOriginalSize(InputStream& in)
 
     usedSize.push_back(dataSize);
 
-    const void *p = data;
+    auto p = data;
 
     if (dataSize < varint_traits<std::uint32_t>::max)
     {
@@ -135,7 +141,7 @@ getOriginalSize(InputStream& in)
     if (originalSizeBytes == 0)
         doThrow("lz4f decompress:: originalSizeBytes == 0");
 
-    // rewind the stream
+    // Rewind the stream
     for (auto it = usedSize.rbegin(); it != usedSize.rend(); ++it)
         in.BackUp(*it);
     in.Skip(originalSizeBytes);
@@ -155,8 +161,8 @@ getOriginalSize(InputStream& in)
  */
 template<typename InputStream>
 bool
-nextChunk(InputStream &in, std::size_t inSize,
-          void const *& compressedChunk, int &chunkSize,
+nextChunk(InputStream& in, std::size_t inSize,
+          void const*& compressedChunk, int &chunkSize,
           std::vector<std::uint8_t> &buffer)
 {
     bool res = in.Next(&compressedChunk, &chunkSize);
@@ -164,6 +170,9 @@ nextChunk(InputStream &in, std::size_t inSize,
     if (!res && buffer.empty())
         return false;
 
+    /* There is existing data in the buffer that still needs to be processed.
+     * Copy the new data to the end of the buffer
+     */
     if (!buffer.empty())
     {
         auto sz = buffer.size();
@@ -180,6 +189,7 @@ nextChunk(InputStream &in, std::size_t inSize,
 }
 
 /** Update cached compressed data buffer.
+ * Handles the case when decompress does not use all input bytes.
  * @param srcSize Input bytes consumed by the decompress function
  * @param compressedChunk Pointer to compressed data
  * @param chunkSize Size of compressed data
@@ -188,31 +198,36 @@ nextChunk(InputStream &in, std::size_t inSize,
 inline
 void
 updateBuffer(std::size_t srcSize,
-             const void * compressedChunk, int chunkSize, std::vector<std::uint8_t> &buffer)
+             const void* compressedChunk, int chunkSize, std::vector<std::uint8_t> &buffer)
 {
     if (srcSize != chunkSize)
     {
-        auto *p = reinterpret_cast<uint8_t const *>(compressedChunk) + srcSize;
+        auto p = reinterpret_cast<uint8_t const *>(compressedChunk) + srcSize;
         auto s = chunkSize - srcSize;
         if (!buffer.empty())
         {
+            // If the cached data is not empty then the unused bytes are
+            // already in the cache - have to move
             std::memmove(buffer.data(), p, s);
             buffer.resize(s);
         }
         else
         {
+            // If the cached data is empty then copy unused bytes from
+            // the chunk
             buffer.resize(s);
             std::memcpy(buffer.data(), p, s);
         }
     }
-    else if (!buffer.empty())
-        buffer.resize(0);
+    else
+        buffer.clear();
 }
 
 /** LZ4 frame decompression. Read compressed data from ZeroCopyInputStream. The data must be prefixed
  * with varint header containing the size of uncompressed data.
  * @tparam InputStream ZeroCopyInputStream
- * @tparam BufferFactory Callable object or lambda. Takes the required buffer size and returns buffer pointer.
+ * @tparam BufferFactory Callable object or lambda.
+ *    Takes the requested buffer size and returns allocated buffer pointer.
  * @param in Input source stream
  * @param inSize Size of compressed data
  * @param bf Decompressed buffer allocator
@@ -220,13 +235,13 @@ updateBuffer(std::size_t srcSize,
  */
 template<typename InputStream, typename BufferFactory>
 std::size_t
-lz4fDecompress(InputStream &in,
+lz4fDecompress(InputStream& in,
                std::size_t inSize, BufferFactory&& bf)
 {
     LZ4F_dctx_s* dctx;
-    void const * compressedChunk = nullptr;
+    void const* compressedChunk = nullptr;
     int chunkSize = 0;
-    std::uint8_t * decompressed = nullptr;
+    std::uint8_t* decompressed = nullptr;
     std::size_t decompressedSize = 0;
     std::vector<std::uint8_t> buffer;
 
@@ -234,8 +249,12 @@ lz4fDecompress(InputStream &in,
         doThrow("lz4f decompress: failed decompression context");
 
     auto originalSize = getOriginalSize(in);
+    // Request the caller to allocate and return the buffer to hold decompressed data
     decompressed = bf(originalSize);
 
+    // Read the next available chunk from the input stream or the buffer. If decompress function does not use
+    // all input bytes then the unprocessed bytes are copied into the buffer (updateBuffer) and the next chunk
+    // is appended to the buffer (nextChunk).
     while (decompressedSize != originalSize &&
            nextChunk(in, inSize, compressedChunk, chunkSize, buffer))
     {

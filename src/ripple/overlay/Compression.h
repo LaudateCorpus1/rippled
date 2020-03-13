@@ -36,14 +36,24 @@ enum class Compressed : std::uint8_t {
     Off
 };
 
+/** Decompress input stream.
+ * @tparam InputStream ZeroCopyInputStream
+ * @tparam BufferFactory Callable object or lambda.
+ *    Takes the requested buffer size and returns allocated buffer pointer.
+ * @param in Input source stream
+ * @param inSize Size of compressed data
+ * @param bf Decompressed buffer allocator
+ * @param algorithm Compression algorithm type
+ * @return Size of decompressed data or zero if failed to decompress
+ */
 template<typename InputStream, typename BufferFactory>
 std::size_t
 decompress(InputStream& in,
-           std::size_t in_size, BufferFactory &&bf, uint8_t algorithm = Algorithm::LZ4) {
+           std::size_t in_size, BufferFactory&& bf, uint8_t algorithm = Algorithm::LZ4) {
     try
     {
         if (algorithm == Algorithm::LZ4)
-            return ripple::compression_algorithms::lz4fDecompress(in, in_size, bf);
+            return ripple::compression_algorithms::lz4fDecompress(in, in_size, std::forward<BufferFactory>(bf));
         else
             Throw<std::runtime_error>(
                     "decompress: invalid compression algorithm");
@@ -54,14 +64,23 @@ decompress(InputStream& in,
     }
 }
 
+/** Compress input data.
+ * @tparam BufferFactory Callable object or lambda.
+ *     Takes the requested buffer size and returns allocated buffer pointer.
+ * @param in Data to compress
+ * @param inSize Size of the data
+ * @param bf Compressed buffer allocator
+ * @param algorithm Compression algorithm type
+ * @return Size of compressed data, or zero if failed to compress
+ */
 template<class BufferFactory>
 std::size_t
-compress(void const *in,
-         std::size_t in_size, BufferFactory &&bf, uint8_t algorithm = Algorithm::LZ4) {
+compress(void const* in,
+         std::size_t in_size, BufferFactory&& bf, uint8_t algorithm = Algorithm::LZ4) {
     try
     {
         if (algorithm == Algorithm::LZ4)
-            return ripple::compression_algorithms::lz4fCompress(in, in_size, bf);
+            return ripple::compression_algorithms::lz4fCompress(in, in_size, std::forward<BufferFactory>(bf));
         else
             Throw<std::runtime_error>(
                     "compress: invalid compression algorithm");
