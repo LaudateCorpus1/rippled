@@ -57,7 +57,6 @@ public:
      */
     Message (::google::protobuf::Message const& message, int type);
 
-public:
     /** Retrieve the packed message data.
      * @param compressed Request compressed (Compress::On) or uncompressed (Compress::Off) payload buffer
      * @return Payload buffer
