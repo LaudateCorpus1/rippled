@@ -17,7 +17,6 @@
 */
 //==============================================================================
 
-#include <ripple/basics/safe_cast.h>
 #include <ripple/overlay/Message.h>
 #include <ripple/overlay/impl/TrafficCount.h>
 #include <cstdint>
@@ -124,9 +123,10 @@ Message::compress()
 */
 void
 Message::setHeader(std::uint8_t* in, uint32_t messageBytes, int type,
-                   Compressed compressed, std::uint8_t comprAlgorithm)
+                   Compressed compressed, Algorithm comprAlgorithm)
 {
-    uint8_t compression = (compressed == Compressed::On?0xF0:0) & (0x80 | (comprAlgorithm << 4));
+    uint8_t compression = (compressed == Compressed::On ? 0xF0 : 0x00) &
+            (0x80 | (static_cast<uint8_t>(comprAlgorithm) << 4));
 
     *in++ = static_cast<std::uint8_t>(((messageBytes >> 24) | compression) & 0xFF);
     *in++ = static_cast<std::uint8_t>((messageBytes >> 16) & 0xFF);

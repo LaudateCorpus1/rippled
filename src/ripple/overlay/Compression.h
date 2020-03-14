@@ -28,6 +28,7 @@ namespace ripple {
 namespace compression {
 
 enum Algorithm : std::uint8_t {
+    None = 0x00,
     LZ4 = 0x01
 };
 
@@ -49,7 +50,7 @@ enum class Compressed : std::uint8_t {
 template<typename InputStream, typename BufferFactory>
 std::size_t
 decompress(InputStream& in,
-           std::size_t in_size, BufferFactory&& bf, uint8_t algorithm = Algorithm::LZ4) {
+           std::size_t in_size, BufferFactory&& bf, Algorithm algorithm = Algorithm::LZ4) {
     try
     {
         if (algorithm == Algorithm::LZ4)
@@ -76,7 +77,7 @@ decompress(InputStream& in,
 template<class BufferFactory>
 std::size_t
 compress(void const* in,
-         std::size_t in_size, BufferFactory&& bf, uint8_t algorithm = Algorithm::LZ4) {
+         std::size_t in_size, BufferFactory&& bf, Algorithm algorithm = Algorithm::LZ4) {
     try
     {
         if (algorithm == Algorithm::LZ4)

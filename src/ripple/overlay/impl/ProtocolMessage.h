@@ -88,8 +88,8 @@ struct MessageHeader
     /** Indicates whether the message is compressed. */
     bool compressed = false;
 
-    /** Indicates which compression algorithme the payload is compressed with. Currenly only lz4 is supported. */
-    uint8_t algorithm = 0;
+    /** Indicates which compression algorithm the payload is compressed with. Currenly only lz4 is supported. */
+    Algorithm algorithm = Algorithm::None;
 };
 
 template<typename BufferSequence>
@@ -108,7 +108,6 @@ boost::optional<MessageHeader> parseMessageHeader(
 
     MessageHeader hdr;
     hdr.compressed = (*iter & 0x80) == 0x80;
-    hdr.algorithm = (*iter & 0x70) >> 4;
 
     // Check valid header
     if ((*iter & 0xFC) == 0 || hdr.compressed)
@@ -117,6 +116,14 @@ boost::optional<MessageHeader> parseMessageHeader(
 
         if (size < hdr.header_size)
             return {};
+
+        if (hdr.compressed)
+        {
+            uint8_t algorithm = (*iter & 0x70) >> 4;
+            if (algorithm != static_cast<std::uint8_t>(Algorithm::LZ4))
+                return {};
+            hdr.algorithm = Algorithm::LZ4;
+        }
 
         for (int i = 0; i != 4; ++i)
             hdr.payload_wire_size = (hdr.payload_wire_size << 8) + *iter++;

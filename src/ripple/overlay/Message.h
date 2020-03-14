@@ -57,7 +57,8 @@ public:
      */
     Message (::google::protobuf::Message const& message, int type);
 
-    /** Retrieve the packed message data.
+    /** Retrieve the packed message data. If compressed message is requested but the message
+     * is not compressible then the uncompressed buffer is returned.
      * @param compressed Request compressed (Compress::On) or uncompressed (Compress::Off) payload buffer
      * @return Payload buffer
      */
@@ -99,7 +100,7 @@ private:
      */
     void setHeader(std::uint8_t* in, uint32_t messageBytes, int type,
             Compressed compressed,
-            std::uint8_t comprAlgorithm = ripple::compression::Algorithm::LZ4);
+            Algorithm comprAlgorithm = ripple::compression::Algorithm::LZ4);
 
     /** Try to compress the payload.
      * Can be called concurrently by multiple peers but is compressed once (mutex_).

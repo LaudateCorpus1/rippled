@@ -86,7 +86,7 @@ PeerImp::PeerImp (Application& app, id_t id,
     , slot_ (slot)
     , request_(std::move(request))
     , headers_(request_)
-    , compressionEnabled_(headers_["Accept-Encoding"] == "lz4" ? Compressed::On : Compressed::Off)
+    , compressionEnabled_(headers_["X-Offer-Compression"] == "lz4" ? Compressed::On : Compressed::Off)
 {
 }
 
@@ -758,7 +758,7 @@ PeerImp::makeResponse (bool crawl,
     resp.insert("Connect-As", "Peer");
     resp.insert("Server", BuildInfo::getFullVersionString());
     resp.insert("Crawl", crawl ? "public" : "private");
-    if (req["Accept-Encoding"] == "lz4" && app_.config().COMPRESSION)
+    if (req["X-Offer-Compression"] == "lz4" && app_.config().COMPRESSION)
         resp.insert("X-Offer-Compression", "lz4");
 
     buildHandshake(resp, sharedValue, overlay_.setup().networkID,
