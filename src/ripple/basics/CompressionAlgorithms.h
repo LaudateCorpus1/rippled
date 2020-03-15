@@ -23,6 +23,7 @@
 #include <ripple/basics/contract.h>
 #include <ripple/basics/varint_common.h>
 #include <lz4frame.h>
+#include <algorithm>
 #include <array>
 #include <cstring>
 
@@ -63,7 +64,7 @@ lz4fCompress(void const* in,
     // Request the caller to allocate and return the buffer to hold compressed data
     auto compressed = bf(originalSizeBytes + outCapacity);
 
-    std::memcpy(compressed, vi.data(), originalSizeBytes);
+    std::copy(vi.begin(), vi.begin() + originalSizeBytes, compressed);
 
     size_t compressedSize = LZ4F_compressFrame(
             compressed + originalSizeBytes,
@@ -97,7 +98,8 @@ copyStream(InputStream& in, std::uint8_t* dst, int size, std::vector<int> &usedS
     while (copied != size && in.Next(&data, &dataSize))
     {
         auto sz = dataSize >= (size - copied) ? (size - copied) : dataSize;
-        std::memcpy(dst + copied, data, sz);
+        std::copy(reinterpret_cast<uint8_t const*>(data),
+                  reinterpret_cast<uint8_t const*>(data) + sz, dst + copied);
         copied += sz;
         usedSize.push_back(dataSize);
     }
@@ -129,7 +131,8 @@ getOriginalSize(InputStream& in)
 
     if (dataSize < varint_traits<std::uint32_t>::max)
     {
-        std::memcpy(vi.data(), data, dataSize);
+        std::copy(reinterpret_cast<const uint8_t*>(data),
+                  reinterpret_cast<const uint8_t*>(data) + dataSize, vi.begin());
         if (!copyStream(in, vi.data() + dataSize,
                         varint_traits<std::uint32_t>::max - dataSize, usedSize))
             doThrow("lz4f decompress: header");
@@ -178,7 +181,9 @@ nextChunk(InputStream& in, std::size_t inSize,
         auto sz = buffer.size();
         chunkSize = ((chunkSize + sz) <= inSize) ? chunkSize : (inSize - sz);
         buffer.resize(sz + chunkSize);
-        std::memcpy(buffer.data() + sz, compressedChunk, chunkSize);
+        std::copy(reinterpret_cast<std::uint8_t const*>(compressedChunk),
+                  reinterpret_cast<std::uint8_t const*>(compressedChunk) + chunkSize,
+                  buffer.begin() + sz);
         compressedChunk = buffer.data();
         chunkSize = buffer.size();
     }
@@ -208,7 +213,7 @@ updateBuffer(std::size_t srcSize,
         {
             // If the cached data is not empty then the unused bytes are
             // already in the cache - have to move
-            std::memmove(buffer.data(), p, s);
+            std::copy(p, p + s, buffer.begin());
             buffer.resize(s);
         }
         else
@@ -216,7 +221,7 @@ updateBuffer(std::size_t srcSize,
             // If the cached data is empty then copy unused bytes from
             // the chunk
             buffer.resize(s);
-            std::memcpy(buffer.data(), p, s);
+            std::copy(p, p + s, buffer.begin());
         }
     }
     else
