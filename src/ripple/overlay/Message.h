@@ -63,19 +63,7 @@ public:
      * @return Payload buffer
      */
     std::vector <uint8_t> const&
-    getBuffer (Compressed compressed)
-    {
-        if (compressed == Compressed::Off)
-            return buffer_;
-
-        if (!alreadyRequested_)
-            compress();
-
-        if (bufferCompressed_.size() > 0)
-            return bufferCompressed_;
-        else
-            return buffer_;
-    }
+    getBuffer (Compressed compressed);
 
     /** Get the traffic category */
     std::size_t
@@ -88,8 +76,7 @@ private:
     std::vector <uint8_t> buffer_;
     std::vector <uint8_t> bufferCompressed_;
     std::size_t category_;
-    std::atomic_bool alreadyRequested_;
-    std::mutex  mutex_;
+    std::once_flag once_flag_;
 
     /** Set the payload header
      * @param in Pointer to the payload

@@ -28,7 +28,6 @@ std::size_t constexpr headerBytes = 6;
 
 Message::Message (::google::protobuf::Message const& message, int type)
     : category_(TrafficCount::categorize(message, type, false))
-    , alreadyRequested_(false)
 {
 
 #if defined(GOOGLE_PROTOBUF_VERSION) && (GOOGLE_PROTOBUF_VERSION >= 3011000)
@@ -47,17 +46,23 @@ Message::Message (::google::protobuf::Message const& message, int type)
         message.SerializeToArray(buffer_.data() + headerBytes, messageBytes);
 }
 
+std::vector <uint8_t> const&
+Message::getBuffer (Compressed compressed)
+{
+    if (compressed == Compressed::Off)
+        return buffer_;
+
+    std::call_once(once_flag_, &Message::compress, this);
+
+    if (bufferCompressed_.size() > 0)
+        return bufferCompressed_;
+    else
+        return buffer_;
+}
+
 void
 Message::compress()
 {
-    std::lock_guard<std::mutex> lock(mutex_);
-
-    // 'redundant' check because multiple threads may call compress().
-    // But once the message is already compressed or tried being compressed
-    // getBuffer() call  will not call compress ()
-    if (alreadyRequested_)
-        return;
-
     auto const messageBytes = buffer_.size () - headerBytes;
 
     auto type = getType(buffer_.data());
@@ -110,8 +115,6 @@ Message::compress()
         else
             bufferCompressed_.resize(0);
     }
-
-    alreadyRequested_ = true;
 }
 
 /** Set payload header
