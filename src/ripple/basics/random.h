@@ -28,6 +28,7 @@
 #include <cstring>
 #include <random>
 #include <limits>
+#include <mutex>
 #include <ripple/beast/cxx17/type_traits.h> // <type_traits>
 
 namespace ripple {
@@ -67,24 +68,41 @@ inline
 beast::xor_shift_engine&
 default_prng ()
 {
+    // This is used to seed the thread-specific PRNGs on demand
+    static beast::xor_shift_engine seeder = []
+    {
+        std::random_device rng;
+
+        std::uint64_t seed = 0;
+
+        for (int i = 0; i < 16; ++i)
+            seed = (seed << 4) ^ rng();
+
+        // Exceedingly unlikely to happen, but just in case
+        if (seed == 0)
+            seed = rng();
+
+        assert (seed != 0);
+
+        return beast::xor_shift_engine(seed);
+    }();
+
+    // This protects the rng
+    static std::mutex m;
+
     static
     boost::thread_specific_ptr<beast::xor_shift_engine> engine;
 
     if (!engine.get())
     {
-        std::random_device rng;
-
-        std::uint64_t seed = rng();
-
-        for (int i = 0; i < 6; ++i)
+        std::uint64_t seed = []
         {
-            if (seed == 0)
-                seed = rng();
+            std::lock_guard lk(m);
+            std::uniform_int_distribution<std::uint64_t> distribution;
+            return distribution(seeder);
+        }();
 
-            seed ^= (seed << (7 - i)) * rng();
-        }
-
-        engine.reset (new beast::xor_shift_engine (seed));
+        engine.reset(new beast::xor_shift_engine(seed));
     }
 
     return *engine;
