@@ -68,44 +68,23 @@ inline
 beast::xor_shift_engine&
 default_prng ()
 {
-    // This is used to seed the thread-specific PRNGs on demand
-    static beast::xor_shift_engine seeder = []
-    {
-        std::random_device rng;
-
-        std::uint64_t seed = 0;
-
-        for (int i = 0; i < 16; ++i)
-            seed = (seed << 4) ^ rng();
-
-        // Exceedingly unlikely to happen, but just in case
-        if (seed == 0)
-            seed = rng();
-
-        assert (seed != 0);
-
-        return beast::xor_shift_engine(seed);
-    }();
-
     // This protects the rng
     static std::mutex m;
+    static std::random_device rng;
 
-    static
-    boost::thread_specific_ptr<beast::xor_shift_engine> engine;
-
-    if (!engine.get())
+    auto seed = []
     {
-        std::uint64_t seed = []
+        std::uniform_int_distribution<std::uint64_t> distribution;
+        std::uint64_t seed;
+        std::lock_guard lk{m};
+        do
         {
-            std::lock_guard lk(m);
-            std::uniform_int_distribution<std::uint64_t> distribution;
-            return distribution(seeder);
-        }();
-
-        engine.reset(new beast::xor_shift_engine(seed));
-    }
-
-    return *engine;
+            seed = distribution(rng);
+        } while (seed == 0);
+        return seed;
+    };
+    thread_local beast::xor_shift_engine engine{seed()};
+    return engine;
 }
 
 /** Return a uniformly distributed random integer.
