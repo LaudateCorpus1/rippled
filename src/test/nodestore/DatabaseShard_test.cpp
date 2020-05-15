@@ -43,7 +43,7 @@ class DatabaseShard_test : public TestBase
     static constexpr std::uint32_t dataSizeMax = 4;
     static constexpr std::uint32_t iniAmount = 1000000;
     static constexpr std::uint32_t nTestShards = 4;
-    static constexpr std::uint32_t shardStoreTimeout = 60;
+    static constexpr std::chrono::minutes shardStoreTimeout{1};
     test::SuiteJournal journal_;
     beast::temp_dir defNodeDir;
 
@@ -451,14 +451,14 @@ class DatabaseShard_test : public TestBase
     waitShard(
         DatabaseShard* db,
         int shardNumber,
-        int timeout = shardStoreTimeout)
+        std::chrono::seconds timeout = shardStoreTimeout)
     {
         RangeSet<std::uint32_t> rs;
-        time_t time0 = time(0);
+        auto time0 = std::chrono::system_clock::now();
         while (!from_string(rs, db->getCompleteShards()) ||
                !boost::icl::contains(rs, shardNumber))
         {
-            if (!BEAST_EXPECT(time(0) - time0 < timeout))
+            if (!BEAST_EXPECT(std::chrono::system_clock::now() - time0 < timeout))
                 return -1;
             std::this_thread::yield();
         }
@@ -859,8 +859,9 @@ class DatabaseShard_test : public TestBase
                     boost::filesystem::path path(shardDir.path());
                     path /= "1";
                     boost::system::error_code ec;
-                    time_t time0 = time(0);
-                    while (time(0) - time0 < shardStoreTimeout &&
+                    auto time0 = std::chrono::system_clock::now();
+                    while (std::chrono::system_clock::now() - time0 <
+                               shardStoreTimeout &&
                            boost::filesystem::exists(path, ec))
                     {
                         std::this_thread::yield();
