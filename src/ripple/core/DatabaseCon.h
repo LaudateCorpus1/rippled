@@ -227,7 +227,7 @@ private:
 // Return the checkpointer from its id. If the checkpointer no longer exists, an
 // nullptr is returned
 std::shared_ptr<Checkpointer>
-checkpointerFromId(std::uint64_t id);
+checkpointerFromId(std::uintptr_t id);
 
 DatabaseCon::Setup
 setup_DatabaseCon(
