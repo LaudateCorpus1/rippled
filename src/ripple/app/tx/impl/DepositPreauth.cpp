@@ -110,11 +110,10 @@ DepositPreauth::doApply()
 {
     if (ctx_.tx.isFieldPresent(sfAuthorize))
     {
-        auto const sleOwner = view().peek(keylet::account(account_));
-        if (!sleOwner)
-            return {tefINTERNAL};
-
-        AcctRoot owner(sleOwner);
+        auto [ter, owner] =
+            makeAcctRoot(view().peek(keylet::account(account_)));
+        if (!isTesSuccess(ter))
+            return ter;
 
         // A preauth counts against the reserve of the issuing account, but we
         // check the starting balance because we want to allow dipping into the
@@ -153,7 +152,7 @@ DepositPreauth::doApply()
         slePreauth->setFieldU64(sfOwnerNode, *page);
 
         // If we succeeded, the new entry counts against the creator's reserve.
-        adjustOwnerCount(view(), sleOwner, 1, viewJ);
+        adjustOwnerCount(view(), owner.slePtr(), 1, viewJ);
     }
     else
     {

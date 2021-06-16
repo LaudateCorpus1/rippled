@@ -21,6 +21,7 @@
 #define RIPPLE_PROTOCOL_ACCT_ROOT_H_INCLUDED
 
 #include <ripple/protocol/STLedgerEntry.h>
+#include <utility>
 
 namespace ripple {
 
@@ -43,14 +44,11 @@ private:
     // frequently accessed.
     mutable std::optional<AccountID> accountID_;
 
-public:
+public: // !!!! DEBUG !!!!
+    // Constructors (private and accessed through a factory function) ----------
     AcctRoot(std::shared_ptr<STLE>&& acctRootPtr)
         : slePtr_(std::move(acctRootPtr))
     {
-        std::uint16_t const type = {slePtr_->at(sfLedgerEntryType)};
-        assert(type == ltACCOUNT_ROOT);
-        if (type != ltACCOUNT_ROOT)
-            Throw<std::runtime_error>("Wrong ledger type for AcctRoot");
     }
 
     AcctRoot(std::shared_ptr<STLE> const& acctRootPtr)
@@ -61,7 +59,13 @@ public:
     AcctRoot&
     operator=(AcctRoot const&) = delete;
 
-private:
+private: // !!!! END DEBUG !!!!
+    // Declare the factory function a friend -----------------------------------
+    template <class T>
+    friend auto
+    makeAcctRoot(T&& slePtr)
+        -> std::pair<NotTEC, decltype(AcctRoot(std::forward<T>(slePtr)))>;
+
     // Helper functions --------------------------------------------------------
     template <typename SF, typename T>
     void
@@ -111,6 +115,13 @@ private:
     }
 
 public:
+    // Raw SLE access ----------------------------------------------------------
+    [[nodiscard]] std::shared_ptr<STLE> const&
+    slePtr()
+    {
+        return slePtr_;
+    }
+
     // AccountID field (immutable) ---------------------------------------------
     [[nodiscard]] AccountID const&
     accountID() const
@@ -388,6 +399,22 @@ static_assert(std::is_copy_assignable_v<AcctRoot<SLE>> == false, "");
 static_assert(std::is_move_assignable_v<AcctRoot<SLE>> == false, "");
 static_assert(std::is_nothrow_destructible_v<AcctRoot<SLE>> == true, "");
 #endif
+
+// Factory function returns a std::pair<NotTEC, AcctRoot> ------------------
+template <class T>
+[[nodiscard]] auto
+makeAcctRoot(T&& slePtr) -> std::pair<NotTEC, decltype(AcctRoot(slePtr))>
+{
+    if (!slePtr)
+        return {terNO_ACCOUNT, std::forward<T>(slePtr)};
+
+    std::uint16_t const type = {slePtr->at(sfLedgerEntryType)};
+    assert(type == ltACCOUNT_ROOT);
+    if (type != ltACCOUNT_ROOT)
+        return {tefINTERNAL, std::forward<T>(slePtr)};
+
+    return {tesSUCCESS, std::forward<T>(slePtr)};
+}
 
 }  // namespace ripple
 

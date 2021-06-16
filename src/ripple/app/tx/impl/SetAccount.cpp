@@ -184,11 +184,10 @@ SetAccount::preclaim(PreclaimContext const& ctx)
 
     std::uint32_t const uTxFlags = ctx.tx.getFlags();
 
-    auto sle = ctx.view.read(keylet::account(id));
-    if (!sle)
-        return terNO_ACCOUNT;
+    auto [ter, acct] = makeAcctRoot(ctx.view.read(keylet::account(id)));
+    if (!isTesSuccess(ter))
+        return ter;
 
-    AcctRoot acct(sle);
     std::uint32_t const uFlagsIn = acct.flags();
 
     std::uint32_t const uSetFlag = ctx.tx.getFieldU32(sfSetFlag);
@@ -215,11 +214,10 @@ SetAccount::preclaim(PreclaimContext const& ctx)
 TER
 SetAccount::doApply()
 {
-    auto const sle = view().peek(keylet::account(account_));
-    if (!sle)
-        return tefINTERNAL;
+    auto [ter, acct] = makeAcctRoot(view().peek(keylet::account(account_)));
+    if (!isTesSuccess(ter))
+        return ter;
 
-    AcctRoot acct(sle);
     std::uint32_t const uFlagsIn = acct.flags();
     std::uint32_t uFlagsOut = uFlagsIn;
 
