@@ -27,14 +27,6 @@ namespace ripple {
 
 // A wrapper that improves access to an AccountRoot through an STLedgerEntry.
 
-template <class STLE>
-class AcctRoot;
-
-template <class T>
-[[nodiscard]] auto
-makeAcctRoot(T&& slePtr) -> std::
-    pair<NotTEC, AcctRoot<typename std::remove_reference_t<T>::element_type>>;
-
 // The template allows an acctRoot to be constructed form either a const
 // or non-const std::shared_ptr<STLedgerEntry>
 template <class STLE>
@@ -64,17 +56,10 @@ private:
     {
     }
 
-    AcctRoot(std::shared_ptr<STLE> const& acctRootPtr)
-        : AcctRoot(std::shared_ptr<STLE>(acctRootPtr))
-    {
-    }
-
     // Declare the factory function a friend -----------------------------------
     template <class T>
     friend auto
-    makeAcctRoot(T&& slePtr) -> std::pair<
-        NotTEC,
-        AcctRoot<typename std::remove_reference_t<T>::element_type>>;
+    makeAcctRoot(std::shared_ptr<T> slePtr) -> std::pair<NotTEC, AcctRoot<T>>;
 
     // Helper functions --------------------------------------------------------
     template <typename SF, typename T>
@@ -411,20 +396,19 @@ static_assert(std::is_nothrow_destructible_v<AcctRoot<SLE>> == true, "");
 #endif
 
 // Factory function returns a std::pair<NotTEC, AcctRoot> ------------------
-template <class T>
+template <class STLE>
 [[nodiscard]] auto
-makeAcctRoot(T&& slePtr) -> std::
-    pair<NotTEC, AcctRoot<typename std::remove_reference_t<T>::element_type>>
+makeAcctRoot(std::shared_ptr<STLE> slePtr) -> std::pair<NotTEC, AcctRoot<STLE>>
 {
     if (!slePtr)
-        return {terNO_ACCOUNT, std::forward<T>(slePtr)};
+        return {terNO_ACCOUNT, std::move(slePtr)};
 
     std::uint16_t const type = {slePtr->at(sfLedgerEntryType)};
     assert(type == ltACCOUNT_ROOT);
     if (type != ltACCOUNT_ROOT)
-        return {tefINTERNAL, std::forward<T>(slePtr)};
+        return {tefINTERNAL, std::move(slePtr)};
 
-    return {tesSUCCESS, std::forward<T>(slePtr)};
+    return {tesSUCCESS, std::move(slePtr)};
 }
 
 }  // namespace ripple
